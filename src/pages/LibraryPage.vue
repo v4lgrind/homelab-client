@@ -1,14 +1,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watch } from "vue";
 import { useRouter } from "vue-router";
-import { RefreshCw, CalendarDays, AlertCircle } from "@lucide/vue";
+import { RefreshCw, CalendarDays, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, Check } from "@lucide/vue";
 import BottomNav from "@/components/BottomNav.vue";
 import PosterCard from "@/components/PosterCard.vue";
+import BottomSheet from "@/components/BottomSheet.vue";
 import { useLibraryStore } from "@/store/library-store";
 import type { MediaItem } from "@/types/arr";
 
 type Tab = "movie" | "series";
 type Filter = "all" | "missing" | "monitored";
+type SortKey = "title" | "added" | "year" | "size";
 
 const lib = useLibraryStore();
 const router = useRouter();
@@ -16,14 +18,50 @@ const router = useRouter();
 const tab = ref<Tab>("movie");
 const filter = ref<Filter>("all");
 
+const SORT_OPTIONS: { key: SortKey; label: string; defaultDir: "asc" | "desc" }[] = [
+  { key: "title", label: "Titre", defaultDir: "asc" },
+  { key: "added", label: "Date d'ajout", defaultDir: "desc" },
+  { key: "year", label: "Année", defaultDir: "desc" },
+  { key: "size", label: "Taille", defaultDir: "desc" },
+];
+const sortKey = ref<SortKey>("title");
+const sortDir = ref<"asc" | "desc">("asc");
+const sortOpen = ref(false);
+
+const sortLabel = computed(() => SORT_OPTIONS.find((o) => o.key === sortKey.value)!.label);
+
+function pickSort(key: SortKey) {
+  if (sortKey.value === key) {
+    sortDir.value = sortDir.value === "asc" ? "desc" : "asc";
+  } else {
+    sortKey.value = key;
+    sortDir.value = SORT_OPTIONS.find((o) => o.key === key)!.defaultDir;
+  }
+}
+
+function cmp(a: MediaItem, b: MediaItem): number {
+  switch (sortKey.value) {
+    case "added":
+      return (a.added ? Date.parse(a.added) : 0) - (b.added ? Date.parse(b.added) : 0);
+    case "year":
+      return (a.year ?? 0) - (b.year ?? 0);
+    case "size":
+      return (a.size ?? 0) - (b.size ?? 0);
+    default:
+      return a.title.localeCompare(b.title);
+  }
+}
+
 const items = computed(() => (tab.value === "movie" ? lib.movies : lib.series));
 const state = computed(() => (tab.value === "movie" ? lib.moviesState : lib.seriesState));
 const error = computed(() => (tab.value === "movie" ? lib.moviesError : lib.seriesError));
 
 const filtered = computed<MediaItem[]>(() => {
-  if (filter.value === "missing") return items.value.filter((i) => !i.complete);
-  if (filter.value === "monitored") return items.value.filter((i) => i.monitored);
-  return items.value;
+  let list = items.value;
+  if (filter.value === "missing") list = list.filter((i) => !i.complete);
+  else if (filter.value === "monitored") list = list.filter((i) => i.monitored);
+  const sorted = [...list].sort(cmp);
+  return sortDir.value === "desc" ? sorted.reverse() : sorted;
 });
 
 function load(force = false) {
@@ -45,6 +83,9 @@ function select(item: MediaItem) {
     <header class="flex items-center justify-between px-5 pt-14 pb-3">
       <h1 class="text-[26px] font-bold -tracking-[0.02em]">Bibliothèque</h1>
       <div class="flex gap-2">
+        <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition" aria-label="Trier" @click="sortOpen = true">
+          <ArrowUpDown :size="18" />
+        </button>
         <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition" aria-label="Calendrier" @click="router.push('/calendar')">
           <CalendarDays :size="19" />
         </button>
@@ -70,8 +111,8 @@ function select(item: MediaItem) {
       </button>
     </div>
 
-    <!-- filter chips -->
-    <div class="flex gap-2 px-5 pb-3.5 overflow-x-auto">
+    <!-- filter chips + active sort -->
+    <div class="flex items-center gap-2 px-5 pb-3.5 overflow-x-auto">
       <button
         v-for="f in (['all', 'missing', 'monitored'] as Filter[])"
         :key="f"
@@ -80,6 +121,10 @@ function select(item: MediaItem) {
         @click="filter = f"
       >
         {{ f === "all" ? "Tout" : f === "missing" ? "Manquants" : "Surveillés" }}
+      </button>
+      <button class="shrink-0 ml-auto flex items-center gap-1 px-3 py-2 rounded-xl text-[12.5px] font-semibold text-sub bg-chip border border-border" @click="sortOpen = true">
+        <component :is="sortDir === 'asc' ? ArrowUp : ArrowDown" :size="13" />
+        {{ sortLabel }}
       </button>
     </div>
 
@@ -108,5 +153,25 @@ function select(item: MediaItem) {
     </div>
 
     <BottomNav />
+
+    <!-- sort sheet -->
+    <BottomSheet :open="sortOpen" title="Trier par" @close="sortOpen = false">
+      <div class="flex flex-col">
+        <button
+          v-for="o in SORT_OPTIONS"
+          :key="o.key"
+          class="flex items-center justify-between py-3.5 px-1 text-left border-b border-border last:border-0"
+          @click="pickSort(o.key)"
+        >
+          <span class="text-[15px] font-medium" :class="sortKey === o.key ? 'text-text' : 'text-sub'">
+            {{ o.label }}
+          </span>
+          <span v-if="sortKey === o.key" class="flex items-center gap-2 text-accent">
+            <component :is="sortDir === 'asc' ? ArrowUp : ArrowDown" :size="16" />
+            <Check :size="18" :stroke-width="2.6" />
+          </span>
+        </button>
+      </div>
+    </BottomSheet>
   </div>
 </template>

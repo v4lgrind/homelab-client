@@ -33,6 +33,7 @@ export interface Movie {
   certification?: string;
   qualityProfileId?: number;
   movieFile?: MovieFile;
+  added?: string; // ISO date
 }
 
 /** Sonarr series statistics (subset). */
@@ -42,6 +43,12 @@ export interface SeriesStatistics {
   totalEpisodeCount?: number;
   sizeOnDisk: number;
   percentOfEpisodes: number;
+}
+
+export interface Season {
+  seasonNumber: number;
+  monitored: boolean;
+  statistics?: SeriesStatistics;
 }
 
 /** Sonarr series (subset of /api/v3/series). */
@@ -56,10 +63,31 @@ export interface Series {
   runtime?: number;
   images: ArrImage[];
   statistics?: SeriesStatistics;
+  seasons?: Season[];
   tvdbId?: number;
   genres?: string[];
   certification?: string;
   qualityProfileId?: number;
+  added?: string; // ISO date
+}
+
+/** A release returned by the interactive search (/api/v3/release). */
+export interface Release {
+  guid: string;
+  title: string;
+  indexer?: string;
+  indexerId?: number;
+  size?: number;
+  seeders?: number;
+  leechers?: number;
+  age?: number; // days
+  ageMinutes?: number;
+  quality?: QualityInfo;
+  protocol?: string; // "torrent" | "usenet"
+  approved?: boolean;
+  rejected?: boolean;
+  rejections?: string[];
+  seasonNumber?: number;
 }
 
 /** A movie or series as returned in full by the detail endpoints. */
@@ -79,4 +107,8 @@ export interface MediaItem {
   poster?: string;
   /** short status line, e.g. "1080p" or "8/10 épisodes". */
   subtitle?: string;
+  /** ISO date the item was added to Radarr/Sonarr (for sorting). */
+  added?: string;
+  /** size on disk in bytes (for sorting). */
+  size?: number;
 }

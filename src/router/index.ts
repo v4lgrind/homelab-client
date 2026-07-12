@@ -15,6 +15,11 @@ const router = createRouter({
       component: () => import("@/pages/DetailPage.vue"),
     },
     {
+      path: "/:kind(movie|series)/:id/search",
+      name: "search-releases",
+      component: () => import("@/pages/InteractiveSearchPage.vue"),
+    },
+    {
       path: "/search",
       name: "search",
       component: () => import("@/pages/SearchPage.vue"),

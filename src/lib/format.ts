@@ -11,6 +11,18 @@ export function formatSize(bytes?: number): string | undefined {
   return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+/** Release age (days and/or minutes) → "3 j" / "5 h" / "2 mois". */
+export function formatAge(days?: number, minutes?: number): string | undefined {
+  const m = minutes ?? (days != null ? days * 1440 : undefined);
+  if (m == null) return undefined;
+  if (m < 60) return `${Math.round(m)} min`;
+  if (m < 1440) return `${Math.round(m / 60)} h`;
+  const d = m / 1440;
+  if (d < 30) return `${Math.round(d)} j`;
+  if (d < 365) return `${Math.round(d / 30)} mois`;
+  return `${(d / 365).toFixed(1)} an`;
+}
+
 /** Minutes → "2h 46" / "48 min". */
 export function formatRuntime(min?: number): string | undefined {
   if (!min || min <= 0) return undefined;

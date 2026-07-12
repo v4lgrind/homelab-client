@@ -34,6 +34,8 @@ function movieToItem(m: Movie, poster?: string): MediaItem {
     monitored: m.monitored,
     complete: m.hasFile,
     poster,
+    added: m.added,
+    size: m.sizeOnDisk,
   };
 }
 
@@ -49,6 +51,8 @@ function seriesToItem(s: Series, poster?: string): MediaItem {
     complete,
     poster,
     subtitle: st ? `${st.episodeFileCount}/${st.episodeCount} ép.` : undefined,
+    added: s.added,
+    size: st?.sizeOnDisk,
   };
 }
 

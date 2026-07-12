@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from "vue";
+import { computed, onMounted } from "vue";
 import { useRoute, useRouter } from "vue-router";
 import {
   ChevronLeft,
@@ -90,17 +90,9 @@ async function onDelete() {
   else alert("La suppression a échoué.");
 }
 
-// transient "search launched" feedback
-const justSearched = ref(false);
-watch(
-  () => lib.searchTriggered,
-  (v) => {
-    if (v) {
-      justSearched.value = true;
-      setTimeout(() => (justSearched.value = false), 2500);
-    }
-  },
-);
+function openSearch() {
+  router.push(`/${kind.value}/${id.value}/search`);
+}
 
 onMounted(() => lib.fetchDetail(kind.value, id.value));
 </script>
@@ -211,14 +203,11 @@ onMounted(() => lib.fetchDetail(kind.value, id.value));
       <!-- actions -->
       <div class="flex gap-2.5 px-5 pt-5">
         <button
-          class="flex-1 h-12 rounded-[14px] font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition disabled:opacity-70"
-          :class="justSearched ? 'bg-ok text-black' : 'bg-accent text-accent-ink'"
-          :disabled="lib.actionBusy"
-          @click="lib.searchRelease()"
+          class="flex-1 h-12 rounded-[14px] bg-accent text-accent-ink font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition"
+          @click="openSearch"
         >
-          <LoaderCircle v-if="lib.actionBusy && !justSearched" :size="17" class="animate-spin" />
-          <component v-else :is="justSearched ? Check : Search" :size="17" :stroke-width="justSearched ? 2.6 : 2.2" />
-          {{ justSearched ? "Recherche lancée" : "Rechercher" }}
+          <Search :size="17" :stroke-width="2.2" />
+          Rechercher
         </button>
         <button class="w-[52px] h-12 rounded-[14px] bg-surface border border-border grid place-items-center text-danger active:scale-95 transition disabled:opacity-60" :disabled="lib.actionBusy" aria-label="Supprimer" @click="onDelete">
           <Trash2 :size="18" />
