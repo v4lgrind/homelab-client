@@ -1,6 +1,6 @@
 import { ServiceHttp, serviceBaseUrl } from "@/services/http";
 import type { ArrSystemStatus, ServiceId } from "@/types/service";
-import type { ArrImage, Movie, Release, Series } from "@/types/arr";
+import type { ArrImage, Episode, Movie, Release, Series } from "@/types/arr";
 
 /**
  * Client for the *arr v3 API. Radarr (movies) and Sonarr (series) share the
@@ -54,6 +54,13 @@ export function createArrClient(
       http.get<Release[]>("/api/v3/release", { params, timeoutMs: 90000 }),
     grabRelease: (guid: string, indexerId: number) =>
       http.post("/api/v3/release", { guid, indexerId }),
+    // calendar
+    getMovieCalendar: (start: string, end: string) =>
+      http.get<Movie[]>("/api/v3/calendar", { params: { start, end, unmonitored: true } }),
+    getSeriesCalendar: (start: string, end: string) =>
+      http.get<Episode[]>("/api/v3/calendar", {
+        params: { start, end, unmonitored: true, includeSeries: true },
+      }),
     // helpers
     posterUrl: (images: ArrImage[] | undefined, mediaId: number) => imageUrl(images, mediaId, "poster"),
     fanartUrl: (images: ArrImage[] | undefined, mediaId: number) => imageUrl(images, mediaId, "fanart"),

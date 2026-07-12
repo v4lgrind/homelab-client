@@ -34,6 +34,10 @@ export interface Movie {
   qualityProfileId?: number;
   movieFile?: MovieFile;
   added?: string; // ISO date
+  // release dates (calendar)
+  inCinemas?: string;
+  digitalRelease?: string;
+  physicalRelease?: string;
 }
 
 /** Sonarr series statistics (subset). */
@@ -69,6 +73,32 @@ export interface Series {
   certification?: string;
   qualityProfileId?: number;
   added?: string; // ISO date
+}
+
+/** Sonarr episode (subset — as returned by the calendar with includeSeries). */
+export interface Episode {
+  id: number;
+  seriesId: number;
+  title?: string;
+  seasonNumber: number;
+  episodeNumber: number;
+  airDateUtc?: string;
+  airDate?: string;
+  hasFile: boolean;
+  monitored: boolean;
+  series?: Series;
+}
+
+/** Normalised calendar row (movie release or series episode). */
+export interface CalendarEntry {
+  kind: MediaKind;
+  id: number; // movie id or series id (for navigation)
+  date: string; // ISO datetime of the release / air
+  title: string;
+  subtitle?: string;
+  poster?: string;
+  monitored: boolean;
+  hasFile: boolean;
 }
 
 /** A release returned by the interactive search (/api/v3/release). */
