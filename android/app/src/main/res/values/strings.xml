@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Homelab</string>
+    <string name="title_activity_main">Homelab</string>
+    <string name="package_name">com.v4lgrind.homelab</string>
+    <string name="custom_url_scheme">com.v4lgrind.homelab</string>
+</resources>

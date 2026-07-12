@@ -1,0 +1,116 @@
+@import "tailwindcss";
+@import "@fontsource-variable/outfit";
+
+/* ============================================================
+   Design tokens — "Direction OLED" · Homelab
+   Adapted from the v4lgrind mediaserver-client design system.
+   Themes: auto (follows OS) / light / dark.
+   ============================================================ */
+
+:root,
+[data-theme="dark"],
+[data-theme="auto"] {
+  --bg: #000;
+  --surface: #121417;
+  --surface-2: #1a1e23;
+  --chip-bg: #16191e;
+  --surface-text: #c7ced6;
+  --text: #fff;
+  --sub: #9aa3ad;
+  --muted: #6b7280;
+  --accent: #2f9bff;
+  --accent-ink: #04121f;
+  --ok: #34d399;
+  --warn: #fbbf24;
+  --danger: #f87171;
+  --nav-bg: rgba(18, 20, 23, 0.82);
+  --border: rgba(255, 255, 255, 0.08);
+}
+
+[data-theme="light"] {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --surface-2: #f4f6f9;
+  --chip-bg: #e7ebf1;
+  --surface-text: #46505e;
+  --text: #0b1220;
+  --sub: #5a6573;
+  --muted: #9aa1ab;
+  --accent: #1f6fe0;
+  --accent-ink: #ffffff;
+  --ok: #059669;
+  --warn: #d97706;
+  --danger: #dc2626;
+  --nav-bg: rgba(255, 255, 255, 0.85);
+  --border: rgba(0, 0, 0, 0.07);
+}
+
+@media (prefers-color-scheme: light) {
+  :root,
+  [data-theme="auto"] {
+    --bg: #eef1f5;
+    --surface: #ffffff;
+    --surface-2: #f4f6f9;
+    --chip-bg: #e7ebf1;
+    --surface-text: #46505e;
+    --text: #0b1220;
+    --sub: #5a6573;
+    --muted: #9aa1ab;
+    --accent: #1f6fe0;
+    --accent-ink: #ffffff;
+    --ok: #059669;
+    --warn: #d97706;
+    --danger: #dc2626;
+    --nav-bg: rgba(255, 255, 255, 0.85);
+    --border: rgba(0, 0, 0, 0.07);
+  }
+}
+
+/* Expose tokens as Tailwind v4 theme colors so `bg-surface`, `text-sub`,
+   `text-accent`, `border-border`, etc. work as utilities. */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-chip: var(--chip-bg);
+  --color-surface-text: var(--surface-text);
+  --color-text: var(--text);
+  --color-sub: var(--sub);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-ink: var(--accent-ink);
+  --color-ok: var(--ok);
+  --color-warn: var(--warn);
+  --color-danger: var(--danger);
+  --color-border: var(--border);
+  --font-sans: "Outfit Variable", system-ui, sans-serif;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: "Outfit Variable", system-ui, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  /* respect device notches / gesture areas (edge-to-edge) */
+  min-height: 100dvh;
+}
+
+#app {
+  min-height: 100dvh;
+}
+
+/* hide scrollbars, mobile-app feel */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+* {
+  box-sizing: border-box;
+}
