@@ -2,7 +2,7 @@ import { defineStore } from "pinia";
 import { createArrClient, type ArrClient } from "@/services/arr";
 import { useConnectionStore } from "@/store/connection-store";
 import { HttpError } from "@/services/http";
-import type { MediaItem, Movie, Series } from "@/types/arr";
+import type { MediaDetail, MediaItem, MediaKind, Movie, Series } from "@/types/arr";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -13,6 +13,16 @@ interface State {
   seriesState: LoadState;
   moviesError?: string;
   seriesError?: string;
+
+  // Detail view
+  detail: MediaDetail | null;
+  detailKind: MediaKind | null;
+  detailState: LoadState;
+  detailError?: string;
+  /** true while a monitor/search/delete action is in flight. */
+  actionBusy: boolean;
+  /** true briefly after a successful search trigger (for UI feedback). */
+  searchTriggered: boolean;
 }
 
 function movieToItem(m: Movie, poster?: string): MediaItem {
@@ -48,6 +58,11 @@ export const useLibraryStore = defineStore("library", {
     series: [],
     moviesState: "idle",
     seriesState: "idle",
+    detail: null,
+    detailKind: null,
+    detailState: "idle",
+    actionBusy: false,
+    searchTriggered: false,
   }),
 
   actions: {
@@ -89,6 +104,82 @@ export const useLibraryStore = defineStore("library", {
       } catch (e) {
         this.seriesState = "error";
         this.seriesError = e instanceof HttpError ? e.message : "Erreur de chargement";
+      }
+    },
+
+    async fetchDetail(kind: MediaKind, id: number, force = false) {
+      if (this.detailState === "loading") return;
+      if (!force && this.detail && this.detailKind === kind && this.detail.id === id) return;
+      this.detailKind = kind;
+      this.detailState = "loading";
+      this.detailError = undefined;
+      this.searchTriggered = false;
+      try {
+        const client = this._client(kind === "movie" ? "radarr" : "sonarr");
+        this.detail = kind === "movie" ? await client.getMovie(id) : await client.getSeriesOne(id);
+        this.detailState = "ready";
+      } catch (e) {
+        this.detailState = "error";
+        this.detailError = e instanceof HttpError ? e.message : "Erreur de chargement";
+      }
+    },
+
+    async toggleMonitored() {
+      if (!this.detail || !this.detailKind || this.actionBusy) return;
+      const kind = this.detailKind;
+      const next = !this.detail.monitored;
+      this.detail.monitored = next; // optimistic
+      this.actionBusy = true;
+      try {
+        const client = this._client(kind === "movie" ? "radarr" : "sonarr");
+        if (kind === "movie") await client.updateMovie(this.detail as Movie);
+        else await client.updateSeries(this.detail as Series);
+        const list = kind === "movie" ? this.movies : this.series;
+        const item = list.find((i) => i.id === this.detail!.id);
+        if (item) item.monitored = next;
+      } catch {
+        this.detail.monitored = !next; // revert on failure
+      } finally {
+        this.actionBusy = false;
+      }
+    },
+
+    async searchRelease() {
+      if (!this.detail || !this.detailKind || this.actionBusy) return;
+      const kind = this.detailKind;
+      const id = this.detail.id;
+      this.actionBusy = true;
+      try {
+        const client = this._client(kind === "movie" ? "radarr" : "sonarr");
+        await client.command(
+          kind === "movie"
+            ? { name: "MoviesSearch", movieIds: [id] }
+            : { name: "SeriesSearch", seriesId: id },
+        );
+        this.searchTriggered = true;
+      } finally {
+        this.actionBusy = false;
+      }
+    },
+
+    async deleteItem(deleteFiles: boolean): Promise<boolean> {
+      if (!this.detail || !this.detailKind || this.actionBusy) return false;
+      const kind = this.detailKind;
+      const id = this.detail.id;
+      this.actionBusy = true;
+      try {
+        const client = this._client(kind === "movie" ? "radarr" : "sonarr");
+        if (kind === "movie") await client.deleteMovie(id, deleteFiles);
+        else await client.deleteSeries(id, deleteFiles);
+        if (kind === "movie") this.movies = this.movies.filter((i) => i.id !== id);
+        else this.series = this.series.filter((i) => i.id !== id);
+        this.detail = null;
+        this.detailKind = null;
+        return true;
+      } catch {
+        return false;
+      } finally {
+        this.actionBusy = false;
       }
     },
   },
