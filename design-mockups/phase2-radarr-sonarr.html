@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homelab · Maquette Phase 2 (Radarr/Sonarr)</title>
+<style>
+:root, [data-theme="dark"] {
+  --bg:#000; --surface:#121417; --surface-2:#1a1e23; --chip-bg:#16191e;
+  --surface-text:#c7ced6; --text:#fff; --sub:#9aa3ad; --muted:#6b7280;
+  --accent:#2f9bff; --accent-ink:#04121f; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+  --nav-bg:rgba(18,20,23,.72); --border:rgba(255,255,255,.08); --field:#0e1013;
+}
+[data-theme="light"] {
+  --bg:#eef1f5; --surface:#fff; --surface-2:#f4f6f9; --chip-bg:#e7ebf1;
+  --surface-text:#46505e; --text:#0b1220; --sub:#5a6573; --muted:#9aa1ab;
+  --accent:#1f6fe0; --accent-ink:#fff; --ok:#059669; --warn:#d97706; --danger:#dc2626;
+  --nav-bg:rgba(255,255,255,.8); --border:rgba(0,0,0,.07); --field:#f4f6f9;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:'Outfit Variable','Outfit',system-ui,sans-serif;background:#e7e5df;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:40px 16px 64px;gap:22px;}
+::-webkit-scrollbar{height:0;width:0;}
+.mock-head{width:100%;max-width:1300px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px;}
+.mock-eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#9b9588;font-weight:600;margin-bottom:8px;}
+.mock-title{font-size:26px;line-height:1.15;margin:0;color:#1c1a17;font-weight:700;letter-spacing:-.02em;}
+.mock-toggle{display:flex;gap:4px;padding:4px;border-radius:13px;background:#dcd8cd;border:1px solid #cfc9bb;flex:none;}
+.mock-toggle button{padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:transparent;color:#6b665d;transition:all .15s;}
+.mock-toggle button[data-active="true"]{background:#1c1a17;color:#f4f1ea;}
+.gallery{display:flex;gap:34px;flex-wrap:wrap;justify-content:center;}
+.frame-label{text-align:center;font-size:13px;color:#8a857a;font-weight:600;margin-top:12px;letter-spacing:.02em;}
+.phone{position:relative;width:380px;height:812px;border-radius:46px;overflow:hidden;background:var(--bg);
+  box-shadow:0 36px 80px -28px rgba(0,0,0,.5),0 0 0 11px #0a0a0a,0 0 0 12px #242424;}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;color:var(--text);background:var(--bg);overflow:hidden;}
+.statusbar{display:flex;align-items:center;justify-content:space-between;padding:16px 26px 6px;font-size:14px;font-weight:600;color:var(--text);z-index:5;}
+.statusbar .bars{display:inline-flex;align-items:flex-end;gap:2px;height:11px;}
+.statusbar .bars i{width:3px;background:var(--text);border-radius:1px;display:block;}
+.statusbar .batt{width:22px;height:11px;border:1.5px solid var(--text);border-radius:3px;position:relative;display:inline-block;}
+.statusbar .batt i{position:absolute;inset:1.5px;width:13px;background:var(--text);border-radius:1px;display:block;}
+.sig{display:flex;align-items:center;gap:7px;}
+.body{flex:1;overflow-y:auto;}
+.pad{padding:6px 20px 0;}
+
+/* headers */
+.scr-head{display:flex;align-items:center;justify-content:space-between;padding:6px 20px 12px;}
+.scr-head h2{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0;}
+.hbtns{display:flex;gap:8px;}
+.iconbtn{width:40px;height:40px;border-radius:13px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--sub);}
+
+/* filter chips */
+.chips{display:flex;gap:8px;padding:2px 20px 14px;overflow-x:auto;}
+.chip{flex:none;padding:8px 15px;border-radius:12px;background:var(--chip-bg);border:1px solid var(--border);color:var(--sub);font-size:13px;font-weight:600;display:flex;align-items:center;gap:6px;}
+.chip.active{background:var(--accent);border-color:transparent;color:var(--accent-ink);}
+.chip .n{opacity:.7;font-weight:600;}
+
+/* poster grid */
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:0 20px 20px;}
+.poster{position:relative;border-radius:14px;overflow:hidden;aspect-ratio:2/3;background:#222;display:flex;align-items:flex-end;box-shadow:0 6px 16px -8px rgba(0,0,0,.6);}
+.poster .grad{position:absolute;inset:0;}
+.poster .meta{position:relative;z-index:2;padding:8px;width:100%;background:linear-gradient(to top,rgba(0,0,0,.85),transparent);}
+.poster .t{font-size:11.5px;font-weight:700;line-height:1.15;color:#fff;text-shadow:0 1px 3px rgba(0,0,0,.6);}
+.poster .y{font-size:10px;color:rgba(255,255,255,.7);margin-top:1px;}
+.badge{position:absolute;top:7px;right:7px;z-index:3;width:20px;height:20px;border-radius:7px;display:grid;place-items:center;backdrop-filter:blur(6px);}
+.badge.ok{background:rgba(52,211,153,.9);color:#04120c;}
+.badge.miss{background:rgba(248,113,113,.9);color:#fff;}
+.badge.mon{background:rgba(0,0,0,.5);color:#fff;}
+.pill-type{position:absolute;top:7px;left:7px;z-index:3;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;padding:3px 6px;border-radius:6px;background:rgba(0,0,0,.55);color:#fff;backdrop-filter:blur(6px);}
+
+/* bottom nav */
+.bottomnav{position:absolute;left:16px;right:16px;bottom:18px;height:64px;border-radius:22px;background:var(--nav-bg);backdrop-filter:blur(18px);border:1px solid var(--border);display:flex;align-items:center;justify-content:space-around;padding:0 6px;z-index:10;}
+.bottomnav a{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:9.5px;color:var(--muted);font-weight:500;}
+.bottomnav a.active{color:var(--accent);font-weight:700;}
+
+/* detail */
+.backdrop{position:relative;height:230px;}
+.backdrop .grad{position:absolute;inset:0;}
+.backdrop .fade{position:absolute;inset:0;background:linear-gradient(to top,var(--bg) 3%,transparent 60%);}
+.backdrop .topbtns{position:absolute;top:52px;left:16px;right:16px;display:flex;justify-content:space-between;z-index:4;}
+.tb{width:38px;height:38px;border-radius:12px;background:rgba(0,0,0,.4);backdrop-filter:blur(8px);display:grid;place-items:center;color:#fff;border:1px solid rgba(255,255,255,.12);}
+.detail-head{display:flex;gap:14px;padding:0 20px;margin-top:-52px;position:relative;z-index:3;}
+.detail-poster{width:96px;height:144px;border-radius:12px;flex:none;box-shadow:0 10px 24px -10px rgba(0,0,0,.7);overflow:hidden;position:relative;}
+.detail-title{padding-top:56px;}
+.detail-title h1{font-size:21px;font-weight:700;letter-spacing:-.01em;margin:0 0 4px;line-height:1.15;}
+.detail-sub{font-size:12.5px;color:var(--sub);display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.dot-sep{width:3px;height:3px;border-radius:50%;background:var(--muted);}
+.stars{color:var(--warn);font-weight:700;}
+/* status row */
+.status-row{display:flex;gap:8px;padding:16px 20px 0;flex-wrap:wrap;}
+.tag{padding:7px 12px;border-radius:11px;font-size:12px;font-weight:600;display:flex;align-items:center;gap:6px;border:1px solid var(--border);background:var(--surface);color:var(--surface-text);}
+.tag.ok{color:var(--ok);border-color:transparent;background:color-mix(in srgb,var(--ok) 15%,transparent);}
+.tag.miss{color:var(--danger);border-color:transparent;background:color-mix(in srgb,var(--danger) 15%,transparent);}
+.switch{width:42px;height:25px;border-radius:20px;background:var(--accent);position:relative;flex:none;}
+.switch i{position:absolute;top:3px;left:20px;width:19px;height:19px;border-radius:50%;background:#fff;}
+.mon-row{display:flex;align-items:center;justify-content:space-between;margin:16px 20px 0;padding:13px 15px;background:var(--surface);border:1px solid var(--border);border-radius:16px;}
+.mon-row .l{font-size:14px;font-weight:600;}
+.mon-row .s{font-size:12px;color:var(--sub);}
+.overview{padding:16px 20px 0;font-size:13.5px;line-height:1.5;color:var(--surface-text);}
+.actions{display:flex;gap:10px;padding:18px 20px 0;}
+.btn{flex:1;height:48px;border-radius:14px;font-family:inherit;font-weight:700;font-size:14px;display:flex;align-items:center;justify-content:center;gap:7px;border:none;}
+.btn.primary{background:var(--accent);color:var(--accent-ink);}
+.btn.ghost{background:var(--surface);border:1px solid var(--border);color:var(--surface-text);flex:none;width:52px;}
+
+/* activity queue */
+.q{display:flex;gap:12px;padding:14px 16px;background:var(--surface);border:1px solid var(--border);border-radius:18px;margin:0 20px 12px;}
+.q .thumb{width:46px;height:68px;border-radius:9px;flex:none;overflow:hidden;position:relative;}
+.q .info{flex:1;min-width:0;}
+.q .title{font-size:14px;font-weight:700;line-height:1.2;}
+.q .subt{font-size:11.5px;color:var(--sub);margin-top:2px;display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+.progress{height:6px;border-radius:4px;background:var(--chip-bg);margin-top:10px;overflow:hidden;}
+.progress i{display:block;height:100%;border-radius:4px;background:var(--accent);}
+.q .stats{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:6px;font-weight:600;}
+.section-l{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);padding:6px 20px 10px;}
+</style>
+</head>
+<body>
+  <div class="mock-head">
+    <div>
+      <div class="mock-eyebrow">Homelab · Phase 2 — Radarr / Sonarr</div>
+      <h1 class="mock-title">Bibliothèque · Détail · Activité</h1>
+    </div>
+    <div class="mock-toggle">
+      <button data-active="true" onclick="setTheme('dark',this)">Sombre</button>
+      <button data-active="false" onclick="setTheme('light',this)">Clair</button>
+    </div>
+  </div>
+
+  <div class="gallery">
+    <!-- ============ BIBLIOTHÈQUE ============ -->
+    <div>
+      <div class="phone"><div class="screen" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+        <div class="body" style="padding-bottom:100px">
+          <div class="scr-head">
+            <h2>Bibliothèque</h2>
+            <div class="hbtns">
+              <div class="iconbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg></div>
+              <div class="iconbtn"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg></div>
+            </div>
+          </div>
+          <div class="chips">
+            <span class="chip active">Tout <span class="n">524</span></span>
+            <span class="chip">Films <span class="n">428</span></span>
+            <span class="chip">Séries <span class="n">96</span></span>
+            <span class="chip">Manquants <span class="n">12</span></span>
+          </div>
+          <div class="grid">
+            <!-- posters -->
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#2b3a67,#101827)"></div><span class="pill-type">Film</span><span class="badge ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div class="meta"><div class="t">Dune : Deuxième Partie</div><div class="y">2024</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#5a2b3a,#1a0f14)"></div><span class="pill-type">Série</span><span class="badge ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div class="meta"><div class="t">Severance</div><div class="y">S2 · 2025</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#1f5a4a,#0a1a15)"></div><span class="pill-type">Film</span><span class="badge miss"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16h.01"/></svg></span><div class="meta"><div class="t">Wicked</div><div class="y">2024</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#4a3a1f,#1a1409)"></div><span class="pill-type">Film</span><span class="badge ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div class="meta"><div class="t">Oppenheimer</div><div class="y">2023</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#3a2b5a,#140f1a)"></div><span class="pill-type">Série</span><span class="badge mon"><svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6 3a3 3 0 0 0-3 3v15l9-4 9 4V6a3 3 0 0 0-3-3z"/></svg></span><div class="meta"><div class="t">The Bear</div><div class="y">S3 · 2024</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#5a4a2b,#1a1409)"></div><span class="pill-type">Film</span><span class="badge ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div class="meta"><div class="t">Poor Things</div><div class="y">2023</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#2b4a5a,#0a161a)"></div><span class="pill-type">Film</span><span class="badge ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div class="meta"><div class="t">The Substance</div><div class="y">2024</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#5a2b2b,#1a0a0a)"></div><span class="pill-type">Série</span><span class="badge miss"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8v5M12 16h.01"/></svg></span><div class="meta"><div class="t">Shōgun</div><div class="y">S1 · 2024</div></div></div>
+            <div class="poster"><div class="grad" style="background:linear-gradient(160deg,#2b5a3a,#0a1a12)"></div><span class="pill-type">Film</span><span class="badge ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg></span><div class="meta"><div class="t">Anora</div><div class="y">2024</div></div></div>
+          </div>
+        </div>
+        <nav class="bottomnav">
+          <a class="active"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Bibliothèque</a>
+          <a><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Recherche</a>
+          <a><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Activité</a>
+          <a><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 8"/></svg>Réglages</a>
+        </nav>
+      </div></div>
+      <div class="frame-label">Bibliothèque</div>
+    </div>
+
+    <!-- ============ DÉTAIL ============ -->
+    <div>
+      <div class="phone"><div class="screen" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+        <div class="body" style="padding-bottom:24px">
+          <div class="backdrop">
+            <div class="grad" style="background:linear-gradient(140deg,#2b3a67 10%,#0e1524 90%)"></div>
+            <div class="fade"></div>
+            <div class="topbtns">
+              <div class="tb"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg></div>
+              <div class="tb"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg></div>
+            </div>
+          </div>
+          <div class="detail-head">
+            <div class="detail-poster"><div style="position:absolute;inset:0;background:linear-gradient(160deg,#2b3a67,#101827)"></div></div>
+            <div class="detail-title">
+              <h1>Dune : Deuxième Partie</h1>
+              <div class="detail-sub"><span>2024</span><span class="dot-sep"></span><span>2h 46</span><span class="dot-sep"></span><span class="stars">★ 8.5</span></div>
+            </div>
+          </div>
+          <div class="status-row">
+            <span class="tag ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Téléchargé · 4K</span>
+            <span class="tag">Bluray-2160p</span>
+            <span class="tag">18.4 Go</span>
+          </div>
+          <div class="mon-row">
+            <div><div class="l">Surveillé</div><div class="s">Radarr cherche les meilleures versions</div></div>
+            <span class="switch"><i></i></span>
+          </div>
+          <div class="overview">Paul Atreides s'unit à Chani et aux Fremen pour mener la révolte contre ceux qui ont détruit sa famille, déchiré entre l'amour de sa vie et le destin de l'univers connu.</div>
+          <div class="actions">
+            <button class="btn primary"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Rechercher</button>
+            <button class="btn ghost"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+          </div>
+        </div>
+      </div></div>
+      <div class="frame-label">Détail (film)</div>
+    </div>
+
+    <!-- ============ ACTIVITÉ ============ -->
+    <div>
+      <div class="phone"><div class="screen" data-theme="dark">
+        <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+        <div class="body" style="padding-bottom:100px">
+          <div class="scr-head"><h2>Activité</h2><div class="hbtns"><div class="iconbtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div></div></div>
+          <div class="section-l">En cours · 2</div>
+          <div class="q">
+            <div class="thumb"><div style="position:absolute;inset:0;background:linear-gradient(160deg,#1f5a4a,#0a1a15)"></div></div>
+            <div class="info">
+              <div class="title">Wicked</div>
+              <div class="subt"><span>2024</span><span class="dot-sep"></span><span>Bluray-1080p</span></div>
+              <div class="progress"><i style="width:68%"></i></div>
+              <div class="stats"><span>68% · 6.1/9.0 Go</span><span>12.4 Mo/s · 4 min</span></div>
+            </div>
+          </div>
+          <div class="q">
+            <div class="thumb"><div style="position:absolute;inset:0;background:linear-gradient(160deg,#5a2b2b,#1a0a0a)"></div></div>
+            <div class="info">
+              <div class="title">Shōgun <span style="color:var(--sub);font-weight:600">· S1E7</span></div>
+              <div class="subt"><span>WEBDL-2160p</span></div>
+              <div class="progress"><i style="width:23%"></i></div>
+              <div class="stats"><span>23% · 1.8/7.8 Go</span><span>3.1 Mo/s · 32 min</span></div>
+            </div>
+          </div>
+          <div class="section-l" style="margin-top:8px">Récent</div>
+          <div class="q">
+            <div class="thumb"><div style="position:absolute;inset:0;background:linear-gradient(160deg,#3a2b5a,#140f1a)"></div></div>
+            <div class="info">
+              <div class="title">The Bear <span style="color:var(--sub);font-weight:600">· S3E10</span></div>
+              <div class="subt"><span class="tag ok" style="padding:3px 8px;font-size:10.5px"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Importé</span><span>il y a 14 min</span></div>
+            </div>
+          </div>
+        </div>
+        <nav class="bottomnav">
+          <a><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Bibliothèque</a>
+          <a><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>Recherche</a>
+          <a class="active"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5M12 15V3"/></svg>Activité</a>
+          <a><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-2.82 1.17V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 8 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15H4a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 6 8"/></svg>Réglages</a>
+        </nav>
+      </div></div>
+      <div class="frame-label">Activité (file d'attente)</div>
+    </div>
+  </div>
+
+<script>
+function setTheme(mode, btn){
+  document.querySelectorAll('.screen').forEach(s=>s.setAttribute('data-theme',mode));
+  document.querySelectorAll('.mock-toggle button').forEach(b=>b.setAttribute('data-active','false'));
+  btn.setAttribute('data-active','true');
+}
+</script>
+</body>
+</html>

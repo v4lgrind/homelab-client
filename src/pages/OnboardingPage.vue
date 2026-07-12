@@ -16,7 +16,7 @@ const rootDomain = computed({
 });
 
 function finish() {
-  if (conn.isConfigured) router.push({ name: "home" });
+  if (conn.isConfigured) router.push({ name: "library" });
 }
 </script>
 
