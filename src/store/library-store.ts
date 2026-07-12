@@ -6,6 +6,11 @@ import type { MediaDetail, MediaItem, MediaKind, Movie, Series } from "@/types/a
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
+export type LibTab = "movie" | "series";
+export type LibFilter = "all" | "missing" | "monitored";
+export type SortKey = "title" | "added" | "year" | "size";
+export type SortDir = "asc" | "desc";
+
 interface State {
   movies: MediaItem[];
   series: MediaItem[];
@@ -13,6 +18,12 @@ interface State {
   seriesState: LoadState;
   moviesError?: string;
   seriesError?: string;
+
+  // View preferences (persisted — survive navigation and restarts)
+  tab: LibTab;
+  filter: LibFilter;
+  sortKey: SortKey;
+  sortDir: SortDir;
 
   // Detail view
   detail: MediaDetail | null;
@@ -62,12 +73,21 @@ export const useLibraryStore = defineStore("library", {
     series: [],
     moviesState: "idle",
     seriesState: "idle",
+    tab: "movie",
+    filter: "all",
+    sortKey: "title",
+    sortDir: "asc",
     detail: null,
     detailKind: null,
     detailState: "idle",
     actionBusy: false,
     searchTriggered: false,
   }),
+
+  // Only the view preferences are persisted; lists/detail refetch fresh.
+  persist: {
+    pick: ["tab", "filter", "sortKey", "sortDir"],
+  },
 
   actions: {
     _client(id: "radarr" | "sonarr"): ArrClient {
