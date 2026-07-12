@@ -51,12 +51,27 @@ les rend same-origin en dev. Sur device, l'app utilise `CapacitorHttp` en direct
 
 ## Android
 
+### Build via Docker (recommandé — aucun SDK local requis)
+
+Une image Docker reproductible embarque JDK 21 + Node 22 + Android SDK
+(platform/build-tools 36). Seul **Docker** est requis sur la machine :
+
 ```bash
-npm run cap:sync       # synchronise le web vers android/
-npm run android:build  # build APK debug (nécessite JDK 17/21 + Android SDK)
+./docker/build-apk.sh          # APK debug
+./docker/build-apk.sh release  # APK release
 ```
 
-APK de sortie : `android/app/build/outputs/apk/debug/`.
+Le 1er run construit l'image (télécharge le SDK, quelques minutes) ; les runs
+suivants réutilisent le cache Gradle et les `node_modules` du conteneur (le
+`node_modules` de l'hôte n'est pas touché). APK de sortie :
+`android/app/build/outputs/apk/debug/`.
+
+### Build local (si tu as JDK 21 + Android SDK installés)
+
+```bash
+npm run cap:sync       # synchronise le web vers android/
+npm run android:build  # build APK debug
+```
 
 ## Structure
 

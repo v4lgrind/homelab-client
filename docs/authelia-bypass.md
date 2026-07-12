@@ -16,20 +16,18 @@ access_control:
     # 1) L'app mobile : APIs Radarr/Sonarr joignables avec la seule clé API.
     #    Scellé sur ^/api/ — le reste du domaine (web UI) reste protégé.
     - domain:
-        - 'radarr.mondomaine.com'
-        - 'sonarr.mondomaine.com'
+        - 'radarr.valgrind.cloud'
+        - 'sonarr.valgrind.cloud'
       resources:
         - '^/api($|/)'
       policy: bypass
 
     # 2) Tout le reste de ces hôtes : auth complète (adapte à ta politique).
     - domain:
-        - 'radarr.mondomaine.com'
-        - 'sonarr.mondomaine.com'
+        - 'radarr.valgrind.cloud'
+        - 'sonarr.valgrind.cloud'
       policy: two_factor
 ```
-
-Remplace `mondomaine.com` par ton domaine réel.
 
 ## Points importants
 
@@ -48,10 +46,10 @@ Remplace `mondomaine.com` par ton domaine réel.
 Quand on ajoutera qBittorrent et Glances, étendre le bypass :
 
 ```yaml
-    - domain: 'qbittorrent.mondomaine.com'
+    - domain: 'qbittorrent.valgrind.cloud'
       resources: ['^/api($|/)']
       policy: bypass
-    - domain: 'glances.mondomaine.com'
+    - domain: 'glances.valgrind.cloud'
       resources: ['^/api($|/)']
       policy: bypass
 ```
