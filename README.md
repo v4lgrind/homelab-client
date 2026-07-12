@@ -13,8 +13,9 @@ visualiser les stats du serveur, dans une seule app au design soigné.
 | Glances | Stats serveur (CPU, RAM, disques, réseau) | ⏳ à venir |
 | Hub notifications | Réception de webhooks | ⏳ plus tard |
 
-Tous les services sont derrière un reverse proxy protégé par **Authelia** ;
-l'app effectue le flux de login session Authelia (voir ci-dessous).
+Tous les services sont derrière un reverse proxy protégé par **Authelia**, mais
+l'app n'a besoin que des **clés API** : Authelia est bypassé sur `/api` côté
+serveur (voir ci-dessous).
 
 ## Stack
 
@@ -25,16 +26,15 @@ l'app effectue le flux de login session Authelia (voir ci-dessous).
 - **HTTP** : `CapacitorHttp` (couche réseau native → gère les cookies de session
   cross-sous-domaine et contourne CORS)
 
-## Authentification (Authelia)
+## Authentification (Option B — bypass /api)
 
-Deux couches se superposent sur chaque requête :
+L'app atteint les APIs **sans** login Authelia : une règle `bypass` scellée sur
+`^/api/` est ajoutée côté serveur (voir [`docs/authelia-bypass.md`](docs/authelia-bypass.md)),
+et les endpoints restent protégés par la **clé API** du service (`X-Api-Key`).
 
-1. **Authelia** — cookie de session `authelia_session` (valable sur `.tondomaine`)
-   obtenu via `POST /api/firstfactor` (+ `POST /api/secondfactor/totp` si 2FA).
-2. **Service** — Radarr/Sonarr via header `X-Api-Key`.
-
-Les identifiants Authelia et les clés API sont stockés dans
-`@capacitor/preferences` ; les URLs des services via le store Pinia persisté.
+Avantages : app plus simple, aucun mot de passe Authelia stocké, rayon de dégâts
+réduit. Les clés API sont stockées dans `@capacitor/preferences` (chiffré) ; les
+URLs des services via le store Pinia persisté.
 
 ## Développement
 

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homelab · Maquette Onboarding</title>
+<style>
+:root, [data-theme="dark"] {
+  --bg:#000; --surface:#121417; --surface-2:#1a1e23; --chip-bg:#16191e;
+  --surface-text:#c7ced6; --text:#fff; --sub:#9aa3ad; --muted:#6b7280;
+  --accent:#2f9bff; --accent-ink:#04121f; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+  --border:rgba(255,255,255,.08); --field:#0e1013; --field-border:rgba(255,255,255,.10);
+}
+[data-theme="light"] {
+  --bg:#eef1f5; --surface:#fff; --surface-2:#f4f6f9; --chip-bg:#e7ebf1;
+  --surface-text:#46505e; --text:#0b1220; --sub:#5a6573; --muted:#9aa1ab;
+  --accent:#1f6fe0; --accent-ink:#fff; --ok:#059669; --warn:#d97706; --danger:#dc2626;
+  --border:rgba(0,0,0,.07); --field:#f4f6f9; --field-border:rgba(0,0,0,.10);
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:'Outfit Variable','Outfit',system-ui,sans-serif;background:#e7e5df;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:40px 16px 64px;gap:22px;}
+::-webkit-scrollbar{height:0;width:0;}
+.mock-head{width:100%;max-width:860px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px;}
+.mock-eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#9b9588;font-weight:600;margin-bottom:8px;}
+.mock-title{font-size:26px;line-height:1.15;margin:0;color:#1c1a17;font-weight:700;letter-spacing:-.02em;}
+.mock-toggle{display:flex;gap:4px;padding:4px;border-radius:13px;background:#dcd8cd;border:1px solid #cfc9bb;flex:none;}
+.mock-toggle button{padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:transparent;color:#6b665d;transition:all .15s;}
+.mock-toggle button[data-active="true"]{background:#1c1a17;color:#f4f1ea;}
+.gallery{display:flex;gap:34px;flex-wrap:wrap;justify-content:center;}
+.frame-label{text-align:center;font-size:13px;color:#8a857a;font-weight:600;margin-top:12px;letter-spacing:.02em;}
+.phone{position:relative;width:380px;height:812px;border-radius:46px;overflow:hidden;background:var(--bg);
+  box-shadow:0 36px 80px -28px rgba(0,0,0,.5),0 0 0 11px #0a0a0a,0 0 0 12px #242424;}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;color:var(--text);background:var(--bg);overflow:hidden;}
+.statusbar{display:flex;align-items:center;justify-content:space-between;padding:16px 26px 6px;font-size:14px;font-weight:600;color:var(--text);}
+.statusbar .bars{display:inline-flex;align-items:flex-end;gap:2px;height:11px;}
+.statusbar .bars i{width:3px;background:var(--text);border-radius:1px;display:block;}
+.statusbar .batt{width:22px;height:11px;border:1.5px solid var(--text);border-radius:3px;position:relative;display:inline-block;}
+.statusbar .batt i{position:absolute;inset:1.5px;width:13px;background:var(--text);border-radius:1px;display:block;}
+.sig{display:flex;align-items:center;gap:7px;}
+.body{flex:1;overflow-y:auto;padding:14px 22px 28px;}
+.brand{display:flex;align-items:center;gap:11px;margin:8px 0 22px;}
+.brand .logo{width:44px;height:44px;border-radius:14px;background:linear-gradient(150deg,var(--accent),color-mix(in srgb,var(--accent) 55%,#7c3aed));display:grid;place-items:center;color:#fff;box-shadow:0 8px 22px -8px var(--accent);}
+.brand .name{font-weight:700;font-size:17px;letter-spacing:-.01em;}
+.brand .name small{display:block;font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.14em;text-transform:uppercase;}
+h2.h{font-size:27px;font-weight:700;letter-spacing:-.02em;margin:0 0 6px;}
+p.lead{font-size:14px;color:var(--sub);margin:0 0 20px;line-height:1.45;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:16px 16px 6px;margin-bottom:14px;}
+.card-title{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:2px 2px 12px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--sub);margin:0 0 6px 3px;}
+.input{display:flex;align-items:center;gap:9px;background:var(--field);border:1px solid var(--field-border);border-radius:14px;padding:0 12px;height:50px;}
+.input svg{flex:none;color:var(--muted);}
+.input input{flex:1;background:transparent;border:none;outline:none;font-family:inherit;font-size:15px;color:var(--text);min-width:0;}
+.input input::placeholder{color:var(--muted);}
+.input .prefix{color:var(--muted);font-size:15px;}
+.input .suffix{color:var(--muted);font-size:13px;font-weight:600;white-space:nowrap;}
+.btn{width:100%;height:54px;border:none;border-radius:16px;background:var(--accent);color:var(--accent-ink);font-family:inherit;font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:8px;cursor:pointer;margin-top:8px;box-shadow:0 10px 26px -12px var(--accent);}
+.note{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--muted);margin:16px 4px 0;line-height:1.45;}
+.svc{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:14px 14px 15px;margin-bottom:12px;}
+.svc.disabled{opacity:.5;}
+.svc-head{display:flex;align-items:center;gap:12px;}
+.svc-ic{width:40px;height:40px;border-radius:12px;background:var(--chip-bg);display:grid;place-items:center;color:var(--accent);flex:none;}
+.svc-name{font-weight:700;font-size:15px;}
+.svc-name small{display:block;font-size:12px;color:var(--sub);font-weight:500;}
+.svc-status{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;}
+.dot{width:8px;height:8px;border-radius:50%;}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 22%,transparent);}
+.dot.off{background:var(--muted);}
+.mini.input{height:44px;}
+.svc-row{display:flex;gap:8px;}
+.pill{align-self:flex-start;padding:8px 14px;border-radius:11px;background:var(--chip-bg);color:var(--surface-text);font-size:12.5px;font-weight:600;border:1px solid var(--border);cursor:pointer;display:flex;align-items:center;gap:6px;}
+.pill.done{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok);border-color:transparent;}
+.soon{margin-left:auto;font-size:11px;font-weight:600;color:var(--muted);background:var(--chip-bg);padding:4px 9px;border-radius:8px;}
+</style>
+</head>
+<body>
+  <div class="mock-head">
+    <div>
+      <div class="mock-eyebrow">Homelab · Phase 1 — Option B</div>
+      <h1 class="mock-title">Onboarding — configuration des services</h1>
+    </div>
+    <div class="mock-toggle">
+      <button data-active="true" onclick="setTheme('dark',this)">Sombre</button>
+      <button data-active="false" onclick="setTheme('light',this)">Clair</button>
+    </div>
+  </div>
+
+  <div class="gallery">
+    <!-- ===== PHONE 1 : à tester ===== -->
+    <div>
+      <div class="phone"><div class="screen" data-theme="dark">
+        <div class="statusbar"><span>9:41</span>
+          <span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span>
+        </div>
+        <div class="body">
+          <div class="brand">
+            <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+            <div class="name">Homelab<small>Console</small></div>
+          </div>
+          <h2 class="h">Configuration</h2>
+          <p class="lead">Renseigne ton domaine et connecte tes services. Chaque appli est protégée par sa clé API.</p>
+
+          <div class="card">
+            <div class="card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Serveur</div>
+            <div class="field">
+              <label>Domaine racine</label>
+              <div class="input"><span class="prefix">https://</span><input placeholder="mondomaine.com" value="mondomaine.com"/></div>
+            </div>
+          </div>
+
+          <!-- Radarr à tester -->
+          <div class="svc">
+            <div class="svc-head">
+              <div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></svg></div>
+              <div class="svc-name">Radarr<small>Films</small></div>
+              <div class="svc-status" style="color:var(--muted)"><span class="dot off"></span>Non testé</div>
+            </div>
+            <div class="svc-row"><div class="input mini"><input value="radarr" style="text-align:right"/><span class="suffix">.mondomaine.com</span></div></div>
+            <div class="input mini"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg><input placeholder="Clé API" value="••••••••••••••••••••"/></div>
+            <span class="pill">Tester la connexion</span>
+          </div>
+
+          <!-- Sonarr à tester -->
+          <div class="svc">
+            <div class="svc-head">
+              <div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="m17 2-5 5-5-5"/></svg></div>
+              <div class="svc-name">Sonarr<small>Séries</small></div>
+              <div class="svc-status" style="color:var(--muted)"><span class="dot off"></span>Non testé</div>
+            </div>
+            <div class="svc-row"><div class="input mini"><input value="sonarr" style="text-align:right"/><span class="suffix">.mondomaine.com</span></div></div>
+            <div class="input mini"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg><input placeholder="Clé API"/></div>
+            <span class="pill">Tester la connexion</span>
+          </div>
+
+          <div class="svc disabled"><div class="svc-head"><div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></div><div class="svc-name">qBittorrent<small>Torrents</small></div><span class="soon">À venir</span></div></div>
+          <div class="svc disabled"><div class="svc-head"><div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="svc-name">Glances<small>Stats serveur</small></div><span class="soon">À venir</span></div></div>
+
+          <div class="note"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>Clés stockées chiffrées sur l'appareil. Nécessite la règle bypass Authelia sur <code style="font-family:monospace">/api</code>.</div>
+        </div>
+      </div></div>
+      <div class="frame-label">À tester</div>
+    </div>
+
+    <!-- ===== PHONE 2 : connecté ===== -->
+    <div>
+      <div class="phone"><div class="screen" data-theme="dark">
+        <div class="statusbar"><span>9:41</span>
+          <span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span>
+        </div>
+        <div class="body">
+          <div class="brand">
+            <div class="logo"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><line x1="6" y1="6" x2="6.01" y2="6"/><line x1="6" y1="18" x2="6.01" y2="18"/></svg></div>
+            <div class="name">Homelab<small>Console</small></div>
+          </div>
+          <h2 class="h">Configuration</h2>
+          <p class="lead">Renseigne ton domaine et connecte tes services. Chaque appli est protégée par sa clé API.</p>
+
+          <div class="card">
+            <div class="card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>Serveur</div>
+            <div class="field">
+              <label>Domaine racine</label>
+              <div class="input"><span class="prefix">https://</span><input value="mondomaine.com"/></div>
+            </div>
+          </div>
+
+          <div class="svc">
+            <div class="svc-head">
+              <div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2"/><path d="M7 2v20M17 2v20M2 12h20M2 7h5M2 17h5M17 17h5M17 7h5"/></svg></div>
+              <div class="svc-name">Radarr<small>Films</small></div>
+              <div class="svc-status" style="color:var(--ok)"><span class="dot ok"></span>Connecté</div>
+            </div>
+            <div class="svc-row"><div class="input mini"><input value="radarr" style="text-align:right"/><span class="suffix">.mondomaine.com</span></div></div>
+            <div class="input mini"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg><input value="••••••••••••••••••••"/></div>
+            <span class="pill done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Testé · v5.2 · 428 films</span>
+          </div>
+
+          <div class="svc">
+            <div class="svc-head">
+              <div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="15" rx="2"/><path d="m17 2-5 5-5-5"/></svg></div>
+              <div class="svc-name">Sonarr<small>Séries</small></div>
+              <div class="svc-status" style="color:var(--ok)"><span class="dot ok"></span>Connecté</div>
+            </div>
+            <div class="svc-row"><div class="input mini"><input value="sonarr" style="text-align:right"/><span class="suffix">.mondomaine.com</span></div></div>
+            <div class="input mini"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg><input value="••••••••••••••••••••"/></div>
+            <span class="pill done"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>Testé · v4.0 · 96 séries</span>
+          </div>
+
+          <div class="svc disabled"><div class="svc-head"><div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="M7 10l5 5 5-5"/><path d="M12 15V3"/></svg></div><div class="svc-name">qBittorrent<small>Torrents</small></div><span class="soon">À venir</span></div></div>
+          <div class="svc disabled"><div class="svc-head"><div class="svc-ic"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg></div><div class="svc-name">Glances<small>Stats serveur</small></div><span class="soon">À venir</span></div></div>
+
+          <button class="btn">Accéder au dashboard
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div></div>
+      <div class="frame-label">Connecté</div>
+    </div>
+  </div>
+
+<script>
+function setTheme(mode, btn){
+  document.querySelectorAll('.screen').forEach(s=>s.setAttribute('data-theme',mode));
+  document.querySelectorAll('.mock-toggle button').forEach(b=>b.setAttribute('data-active','false'));
+  btn.setAttribute('data-active','true');
+}
+</script>
+</body>
+</html>
