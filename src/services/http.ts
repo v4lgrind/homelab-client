@@ -10,6 +10,7 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
   radarr: "/proxy-radarr",
   sonarr: "/proxy-sonarr",
   glances: "/proxy-glances",
+  qbittorrent: "/proxy-qbittorrent",
 };
 
 export class HttpError extends Error {

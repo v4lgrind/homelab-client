@@ -4,6 +4,7 @@ import { SERVICES, STORAGE_KEYS } from "@/constants";
 import type { ServiceId, ServiceState } from "@/types/service";
 import { createArrClient } from "@/services/arr";
 import { createGlancesClient } from "@/services/glances";
+import { createQbitClient } from "@/services/qbittorrent";
 import { HttpError } from "@/services/http";
 
 function defaultServices(): Record<ServiceId, ServiceState> {
@@ -70,6 +71,11 @@ export const useConnectionStore = defineStore("connection", {
       this.services[id].status = "idle";
     },
 
+    setUsername(id: ServiceId, value: string) {
+      this.services[id].username = value.trim();
+      this.services[id].status = "idle";
+    },
+
     async persistApiKey(id: ServiceId) {
       const key = STORAGE_KEYS.apiKeyPrefix + id;
       const value = this.apiKeys[id]?.trim();
@@ -83,15 +89,23 @@ export const useConnectionStore = defineStore("connection", {
       const meta = SERVICES.find((s) => s.id === id)!;
       const key = this.apiKeys[id]?.trim();
 
-      if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
-        svc.status = "error";
-        svc.error = "Domaine et sous-domaine requis";
-        return false;
-      }
-      if (meta.authType === "apikey" && !key) {
-        svc.status = "error";
-        svc.error = "Clé API requise";
-        return false;
+      if (meta.authType === "proxyurl") {
+        if (!key) {
+          svc.status = "error";
+          svc.error = "URL du proxy qui requise";
+          return false;
+        }
+      } else {
+        if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
+          svc.status = "error";
+          svc.error = "Domaine et sous-domaine requis";
+          return false;
+        }
+        if (meta.authType === "apikey" && !key) {
+          svc.status = "error";
+          svc.error = "Clé API requise";
+          return false;
+        }
       }
 
       svc.status = "testing";
@@ -102,6 +116,16 @@ export const useConnectionStore = defineStore("connection", {
           const client = createGlancesClient(svc.subdomain, this.rootDomain);
           const s = await client.getStats();
           svc.version = s.hostname;
+          svc.status = "ok";
+          return true;
+        }
+        if (meta.authType === "proxyurl") {
+          // qBittorrent via qui proxy: the URL (with embedded key) is the auth.
+          await this.persistApiKey(id);
+          const client = createQbitClient(key!);
+          await client.getTransferInfo();
+          const v = await client.getAppVersion().catch(() => undefined);
+          svc.version = typeof v === "string" ? v.replace(/^v/i, "") : undefined;
           svc.status = "ok";
           return true;
         }

@@ -41,15 +41,26 @@ access_control:
   `/api/v3/mediacover/...` : couvertes par le bypass, chargées avec la clé en
   paramètre `?apikey=` (sur HTTPS, vers ton propre serveur).
 
-## Extensions futures
-
-Quand on ajoutera qBittorrent et Glances, étendre le bypass :
+## Glances
 
 ```yaml
-    - domain: 'qbittorrent.valgrind.cloud'
-      resources: ['^/api($|/)']
-      policy: bypass
     - domain: 'glances.valgrind.cloud'
       resources: ['^/api($|/)']
+      policy: bypass
+```
+
+## qBittorrent (via qui)
+
+qBittorrent est piloté à travers le **Client Proxy de qui**, pas en direct.
+Dans qui : *Settings → Client Proxy Keys → Create Client API Key* (choisir
+l'instance qBittorrent) → copier l'**URL de proxy** (elle contient la clé), à
+coller dans l'app (Réglages → qBittorrent).
+
+Si `qui.valgrind.cloud` est derrière Authelia, bypasser le chemin du proxy (la
+clé protège déjà l'accès) :
+
+```yaml
+    - domain: 'qui.valgrind.cloud'
+      resources: ['^/proxy($|/)']
       policy: bypass
 ```

@@ -6,6 +6,7 @@ import {
   ArrowDownToLine,
   Activity,
   KeyRound,
+  Link,
   Check,
   LoaderCircle,
   Eye,
@@ -108,8 +109,8 @@ function test() {
       </div>
     </div>
 
-    <!-- subdomain -->
-    <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+    <!-- subdomain (not needed for the qui proxy URL) -->
+    <div v-if="meta.authType !== 'proxyurl'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
       <input
         v-model="subdomain"
         class="flex-1 min-w-0 bg-transparent outline-none text-[15px] text-right"
@@ -131,6 +132,23 @@ function test() {
         :type="showKey ? 'text' : 'password'"
         class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
         placeholder="Clé API"
+        autocapitalize="none"
+        autocorrect="off"
+        spellcheck="false"
+      />
+      <button class="text-muted shrink-0" type="button" @click="showKey = !showKey">
+        <component :is="showKey ? EyeOff : Eye" :size="18" />
+      </button>
+    </div>
+
+    <!-- qui proxy URL (qBittorrent) -->
+    <div v-if="meta.authType === 'proxyurl'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+      <Link :size="16" class="text-muted shrink-0" />
+      <input
+        v-model="apiKey"
+        :type="showKey ? 'text' : 'password'"
+        class="flex-1 min-w-0 bg-transparent outline-none text-[14px]"
+        placeholder="https://qui…/proxy/clé"
         autocapitalize="none"
         autocorrect="off"
         spellcheck="false"

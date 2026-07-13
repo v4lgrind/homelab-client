@@ -55,6 +55,22 @@ export function formatEta(timeleft?: string): string | undefined {
   return `${Math.floor(totalMin / 1440)} j`;
 }
 
+/** Seconds → "4 min" / "1h20" / "2 j". qBittorrent uses 8640000 for infinity. */
+export function formatDuration(seconds?: number): string | undefined {
+  if (seconds == null || seconds < 0 || seconds >= 8640000) return undefined;
+  const m = Math.round(seconds / 60);
+  if (m < 1) return "<1 min";
+  if (m < 60) return `${m} min`;
+  if (m < 1440) return `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}`;
+  return `${Math.floor(m / 1440)} j`;
+}
+
+/** Bytes/s → "12.4 Mo/s". */
+export function formatSpeed(bytesPerSec?: number): string {
+  const s = formatSize(bytesPerSec);
+  return s ? `${s}/s` : "0 o/s";
+}
+
 /** Minutes → "2h 46" / "48 min". */
 export function formatRuntime(min?: number): string | undefined {
   if (!min || min <= 0) return undefined;
