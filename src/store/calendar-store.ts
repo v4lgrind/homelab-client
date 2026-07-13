@@ -52,25 +52,31 @@ interface State {
   entries: CalendarEntry[];
   state: LoadState;
   error?: string;
+  /** date range currently loaded (to skip redundant refetches). */
+  rangeKey: string;
 }
 
 export const useCalendarStore = defineStore("calendar", {
-  state: (): State => ({ entries: [], state: "idle" }),
+  state: (): State => ({ entries: [], state: "idle", rangeKey: "" }),
 
   actions: {
-    async fetch(days = 28, force = false) {
+    /** Convenience: agenda = next N days from today. */
+    fetchAgenda(days = 28, force = false) {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      const end = new Date(start);
+      end.setDate(end.getDate() + days);
+      return this.fetchRange(start.toISOString(), end.toISOString(), force);
+    },
+
+    async fetchRange(startISO: string, endISO: string, force = false) {
+      const key = `${startISO}|${endISO}`;
+      if (!force && this.state === "ready" && this.rangeKey === key) return;
       if (this.state === "loading") return;
-      if (this.state === "ready" && !force) return;
       this.state = "loading";
       this.error = undefined;
 
-      const start = new Date();
-      start.setHours(0, 0, 0, 0);
-      const startMs = start.getTime();
-      const end = new Date(start);
-      end.setDate(end.getDate() + days);
-      const startISO = start.toISOString();
-      const endISO = end.toISOString();
+      const startMs = Date.parse(startISO);
 
       const [movieRes, seriesRes] = await Promise.allSettled([
         (async () => {
@@ -101,6 +107,7 @@ export const useCalendarStore = defineStore("calendar", {
 
       entries.sort((a, b) => Date.parse(a.date) - Date.parse(b.date));
       this.entries = entries;
+      this.rangeKey = key;
       this.state = "ready";
     },
   },
