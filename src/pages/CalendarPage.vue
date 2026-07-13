@@ -189,12 +189,12 @@ onMounted(() => load());
       <div class="grid grid-cols-7 mb-1">
         <span v-for="(w, i) in weekdays" :key="i" class="text-center text-[11px] font-semibold text-muted py-1">{{ w }}</span>
       </div>
-      <div class="grid grid-cols-7 gap-1">
+      <div class="grid grid-cols-7 gap-0.5">
         <button
           v-for="d in gridDays"
           :key="keyOf(d)"
           type="button"
-          class="aspect-square rounded-xl flex flex-col items-center justify-center gap-1 border transition"
+          class="h-11 rounded-lg flex flex-col items-center justify-center gap-0.5 border transition"
           :class="[
             selectedKey === keyOf(d) ? 'border-accent bg-accent/10' : 'border-transparent',
             d.getMonth() === monthCursor.getMonth() ? '' : 'opacity-35',
@@ -202,14 +202,14 @@ onMounted(() => load());
           @click="selectedKey = keyOf(d)"
         >
           <span
-            class="text-[13px] font-semibold size-6 grid place-items-center rounded-full"
+            class="text-[12px] font-semibold size-5 grid place-items-center rounded-full"
             :class="sameDay(d, today) ? 'bg-accent text-accent-ink' : 'text-text'"
           >{{ d.getDate() }}</span>
-          <span class="flex gap-0.5 h-1.5">
+          <span class="flex gap-0.5 h-1">
             <span
               v-for="(e, i) in (byDay.get(keyOf(d)) || []).slice(0, 3)"
               :key="i"
-              class="size-1.5 rounded-full"
+              class="size-1 rounded-full"
               :style="{ background: dotColor(e) }"
             />
           </span>
