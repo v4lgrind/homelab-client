@@ -12,20 +12,31 @@ export default defineConfig(({ mode }) => {
   // On device, CapacitorHttp talks to the real domains directly (no proxy, no CORS).
   // Configure the targets in a local .env file (see .env.example).
   const proxy: Record<string, any> = {};
-  const addProxy = (route: string, target?: string) => {
+  const addProxy = (route: string, target?: string, stripOrigin = false) => {
     if (!target) return;
     proxy[route] = {
       target,
       changeOrigin: true,
       secure: false,
       rewrite: (p: string) => p.replace(new RegExp(`^${route}`), ""),
+      // qBittorrent's WebUI rejects cross-origin requests (CSRF): the browser
+      // sends Origin/Referer of localhost:5173, which it 401s. On device,
+      // CapacitorHttp sends neither header, so strip them here to match.
+      ...(stripOrigin && {
+        configure: (proxyServer: any) => {
+          proxyServer.on("proxyReq", (proxyReq: any) => {
+            proxyReq.removeHeader("origin");
+            proxyReq.removeHeader("referer");
+          });
+        },
+      }),
     };
   };
   addProxy("/proxy-authelia", env.DEV_AUTHELIA_URL);
   addProxy("/proxy-radarr", env.DEV_RADARR_URL);
   addProxy("/proxy-sonarr", env.DEV_SONARR_URL);
   addProxy("/proxy-glances", env.DEV_GLANCES_URL);
-  addProxy("/proxy-qbittorrent", env.DEV_QBITTORRENT_URL);
+  addProxy("/proxy-qbittorrent", env.DEV_QBITTORRENT_URL, true);
 
   return {
     plugins: [vue(), tailwindcss()],
