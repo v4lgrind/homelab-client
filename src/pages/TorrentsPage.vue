@@ -24,12 +24,7 @@ const router = useRouter();
 const qbit = useQbitStore();
 const conn = useConnectionStore();
 
-const configured = computed(
-  () =>
-    !!conn.rootDomain.trim() &&
-    !!conn.services.qbittorrent.username?.trim() &&
-    !!conn.apiKeys.qbittorrent?.trim(),
-);
+const configured = computed(() => !!conn.apiKeys.qbittorrent?.trim());
 
 const FILTERS: { key: TorrentFilter; label: string }[] = [
   { key: "all", label: "Tous" },
@@ -145,7 +140,7 @@ onUnmounted(() => timer && clearInterval(timer));
     <!-- not configured -->
     <div v-if="!configured" class="flex flex-col items-center text-center pt-24 gap-3 text-muted">
       <Settings :size="34" />
-      <p class="text-sm px-6">Configure qBittorrent (sous-domaine + identifiants) dans les Réglages.</p>
+      <p class="text-sm px-6">Configure qBittorrent (URL du proxy qui) dans les Réglages.</p>
       <button class="px-4 py-2 rounded-xl bg-accent text-accent-ink text-sm font-semibold" @click="router.push('/settings')">
         Ouvrir les Réglages
       </button>

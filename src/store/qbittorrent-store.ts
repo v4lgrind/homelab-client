@@ -83,20 +83,11 @@ export const useQbitStore = defineStore("qbittorrent", {
   },
 
   actions: {
-    /** Run a client call, logging in + retrying once on an auth failure. */
-    async _run<T>(fn: (c: QbitClient) => Promise<T>): Promise<T> {
+    /** Run a client call against the qui proxy (session handled by qui). */
+    _run<T>(fn: (c: QbitClient) => Promise<T>): Promise<T> {
       const conn = useConnectionStore();
-      const svc = conn.services.qbittorrent;
-      const client = createQbitClient(svc.subdomain, conn.rootDomain);
-      try {
-        return await fn(client);
-      } catch (e) {
-        if (e instanceof HttpError && e.kind === "auth") {
-          await client.login(svc.username?.trim() ?? "", conn.apiKeys.qbittorrent?.trim() ?? "");
-          return await fn(client);
-        }
-        throw e;
-      }
+      const client = createQbitClient(conn.apiKeys.qbittorrent?.trim() ?? "");
+      return fn(client);
     },
 
     async fetch(force = false) {

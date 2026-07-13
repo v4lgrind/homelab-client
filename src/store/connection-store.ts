@@ -89,20 +89,23 @@ export const useConnectionStore = defineStore("connection", {
       const meta = SERVICES.find((s) => s.id === id)!;
       const key = this.apiKeys[id]?.trim();
 
-      if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
-        svc.status = "error";
-        svc.error = "Domaine et sous-domaine requis";
-        return false;
-      }
-      if (meta.authType === "apikey" && !key) {
-        svc.status = "error";
-        svc.error = "Clé API requise";
-        return false;
-      }
-      if (meta.authType === "userpass" && (!svc.username?.trim() || !key)) {
-        svc.status = "error";
-        svc.error = "Utilisateur et mot de passe requis";
-        return false;
+      if (meta.authType === "proxyurl") {
+        if (!key) {
+          svc.status = "error";
+          svc.error = "URL du proxy qui requise";
+          return false;
+        }
+      } else {
+        if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
+          svc.status = "error";
+          svc.error = "Domaine et sous-domaine requis";
+          return false;
+        }
+        if (meta.authType === "apikey" && !key) {
+          svc.status = "error";
+          svc.error = "Clé API requise";
+          return false;
+        }
       }
 
       svc.status = "testing";
@@ -116,12 +119,13 @@ export const useConnectionStore = defineStore("connection", {
           svc.status = "ok";
           return true;
         }
-        if (meta.authType === "userpass") {
-          // qBittorrent: login with username + password (password stored as key).
+        if (meta.authType === "proxyurl") {
+          // qBittorrent via qui proxy: the URL (with embedded key) is the auth.
           await this.persistApiKey(id);
-          const client = createQbitClient(svc.subdomain, this.rootDomain);
-          await client.login(svc.username!.trim(), key!);
-          svc.version = await client.getAppVersion().catch(() => undefined);
+          const client = createQbitClient(key!);
+          await client.getTransferInfo();
+          const v = await client.getAppVersion().catch(() => undefined);
+          svc.version = typeof v === "string" ? v.replace(/^v/i, "") : undefined;
           svc.status = "ok";
           return true;
         }
