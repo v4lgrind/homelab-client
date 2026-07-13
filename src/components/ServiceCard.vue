@@ -123,8 +123,8 @@ function test() {
       </span>
     </div>
 
-    <!-- api key -->
-    <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+    <!-- api key (only for services authenticated by key) -->
+    <div v-if="meta.authType === 'apikey'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
       <KeyRound :size="16" class="text-muted shrink-0" />
       <input
         v-model="apiKey"

@@ -11,6 +11,19 @@ export function formatSize(bytes?: number): string | undefined {
   return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
 }
 
+/** Bytes/sec → "12.4 Mo/s". */
+export function formatRate(bytesPerSec?: number): string {
+  const b = bytesPerSec ?? 0;
+  const units = ["o/s", "Ko/s", "Mo/s", "Go/s"];
+  let v = b;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${v.toFixed(v >= 100 || i === 0 ? 0 : 1)} ${units[i]}`;
+}
+
 /** Release age (days and/or minutes) → "3 j" / "5 h" / "2 mois". */
 export function formatAge(days?: number, minutes?: number): string | undefined {
   const m = minutes ?? (days != null ? days * 1440 : undefined);

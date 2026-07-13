@@ -24,6 +24,7 @@ export default defineConfig(({ mode }) => {
   addProxy("/proxy-authelia", env.DEV_AUTHELIA_URL);
   addProxy("/proxy-radarr", env.DEV_RADARR_URL);
   addProxy("/proxy-sonarr", env.DEV_SONARR_URL);
+  addProxy("/proxy-glances", env.DEV_GLANCES_URL);
 
   return {
     plugins: [vue(), tailwindcss()],

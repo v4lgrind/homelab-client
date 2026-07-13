@@ -11,18 +11,22 @@ export const STORAGE_KEYS = {
 
 export type ThemeMode = "auto" | "light" | "dark";
 
+export type AuthType = "apikey" | "userpass" | "none";
+
 export interface ServiceMeta {
   id: ServiceId;
   name: string;
   desc: string;
   defaultSubdomain: string;
+  /** How the app authenticates to this service. */
+  authType: AuthType;
   /** Whether this module is implemented yet (others show "À venir"). */
   available: boolean;
 }
 
 export const SERVICES: ServiceMeta[] = [
-  { id: "radarr", name: "Radarr", desc: "Films", defaultSubdomain: "radarr", available: true },
-  { id: "sonarr", name: "Sonarr", desc: "Séries", defaultSubdomain: "sonarr", available: true },
-  { id: "qbittorrent", name: "qBittorrent", desc: "Torrents", defaultSubdomain: "qbittorrent", available: false },
-  { id: "glances", name: "Glances", desc: "Stats serveur", defaultSubdomain: "glances", available: false },
+  { id: "radarr", name: "Radarr", desc: "Films", defaultSubdomain: "radarr", authType: "apikey", available: true },
+  { id: "sonarr", name: "Sonarr", desc: "Séries", defaultSubdomain: "sonarr", authType: "apikey", available: true },
+  { id: "qbittorrent", name: "qBittorrent", desc: "Torrents", defaultSubdomain: "qbittorrent", authType: "userpass", available: false },
+  { id: "glances", name: "Glances", desc: "Stats serveur", defaultSubdomain: "glances", authType: "none", available: true },
 ];
