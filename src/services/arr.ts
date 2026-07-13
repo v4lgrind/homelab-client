@@ -1,6 +1,15 @@
 import { ServiceHttp, serviceBaseUrl } from "@/services/http";
 import type { ArrSystemStatus, ServiceId } from "@/types/service";
-import type { ArrImage, Episode, Movie, Release, Series } from "@/types/arr";
+import type {
+  ArrImage,
+  Episode,
+  HistoryRecordRaw,
+  Movie,
+  Paged,
+  QueueRecordRaw,
+  Release,
+  Series,
+} from "@/types/arr";
 
 /**
  * Client for the *arr v3 API. Radarr (movies) and Sonarr (series) share the
@@ -60,6 +69,28 @@ export function createArrClient(
     getSeriesCalendar: (start: string, end: string) =>
       http.get<Episode[]>("/api/v3/calendar", {
         params: { start, end, unmonitored: true, includeSeries: true },
+      }),
+    // activity: queue + history
+    getMovieQueue: () =>
+      http.get<Paged<QueueRecordRaw>>("/api/v3/queue", { params: { pageSize: 100, includeMovie: true } }),
+    getSeriesQueue: () =>
+      http.get<Paged<QueueRecordRaw>>("/api/v3/queue", {
+        params: { pageSize: 100, includeSeries: true, includeEpisode: true },
+      }),
+    getMovieHistory: () =>
+      http.get<Paged<HistoryRecordRaw>>("/api/v3/history", {
+        params: { page: 1, pageSize: 30, sortKey: "date", sortDirection: "descending", includeMovie: true },
+      }),
+    getSeriesHistory: () =>
+      http.get<Paged<HistoryRecordRaw>>("/api/v3/history", {
+        params: {
+          page: 1,
+          pageSize: 30,
+          sortKey: "date",
+          sortDirection: "descending",
+          includeSeries: true,
+          includeEpisode: true,
+        },
       }),
     // helpers
     posterUrl: (images: ArrImage[] | undefined, mediaId: number) => imageUrl(images, mediaId, "poster"),

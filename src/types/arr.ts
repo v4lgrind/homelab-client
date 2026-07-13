@@ -101,6 +101,72 @@ export interface CalendarEntry {
   hasFile: boolean;
 }
 
+export interface Paged<T> {
+  page: number;
+  pageSize: number;
+  totalRecords: number;
+  records: T[];
+}
+
+/** Raw record from /api/v3/queue. */
+export interface QueueRecordRaw {
+  id: number;
+  movieId?: number;
+  seriesId?: number;
+  episodeId?: number;
+  title?: string; // release title
+  size?: number;
+  sizeleft?: number;
+  timeleft?: string;
+  status?: string;
+  trackedDownloadState?: string;
+  trackedDownloadStatus?: string;
+  quality?: QualityInfo;
+  movie?: Movie;
+  series?: Series;
+  episode?: Episode;
+}
+
+/** Raw record from /api/v3/history. */
+export interface HistoryRecordRaw {
+  id: number;
+  eventType: string;
+  date: string;
+  movieId?: number;
+  seriesId?: number;
+  sourceTitle?: string;
+  quality?: QualityInfo;
+  movie?: Movie;
+  series?: Series;
+  episode?: Episode;
+}
+
+/** Normalised download-queue row. */
+export interface QueueItem {
+  key: string;
+  kind: MediaKind;
+  mediaId: number;
+  title: string;
+  subtitle?: string;
+  progress: number; // 0..1
+  size?: number;
+  sizeleft?: number;
+  timeleft?: string;
+  statusLabel?: string;
+  poster?: string;
+}
+
+/** Normalised history (recently imported) row. */
+export interface HistoryItem {
+  key: string;
+  kind: MediaKind;
+  mediaId: number;
+  title: string;
+  subtitle?: string;
+  date: string;
+  poster?: string;
+}
+
 /** A release returned by the interactive search (/api/v3/release). */
 export interface Release {
   guid: string;

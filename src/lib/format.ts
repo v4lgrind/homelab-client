@@ -23,6 +23,25 @@ export function formatAge(days?: number, minutes?: number): string | undefined {
   return `${(d / 365).toFixed(1)} an`;
 }
 
+/** *arr timeleft ("HH:MM:SS" or "D.HH:MM:SS") → "4 min" / "1h20" / "2 j". */
+export function formatEta(timeleft?: string): string | undefined {
+  if (!timeleft) return undefined;
+  let days = 0;
+  let rest = timeleft;
+  const dot = timeleft.indexOf(".");
+  const colon = timeleft.indexOf(":");
+  if (dot !== -1 && dot < colon) {
+    days = parseInt(timeleft.slice(0, dot), 10) || 0;
+    rest = timeleft.slice(dot + 1);
+  }
+  const [h = 0, m = 0] = rest.split(":").map((n) => parseInt(n, 10) || 0);
+  const totalMin = days * 1440 + h * 60 + m;
+  if (totalMin <= 0) return undefined;
+  if (totalMin < 60) return `${totalMin} min`;
+  if (totalMin < 1440) return `${Math.floor(totalMin / 60)}h${String(totalMin % 60).padStart(2, "0")}`;
+  return `${Math.floor(totalMin / 1440)} j`;
+}
+
 /** Minutes → "2h 46" / "48 min". */
 export function formatRuntime(min?: number): string | undefined {
   if (!min || min <= 0) return undefined;
