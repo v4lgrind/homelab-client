@@ -4,6 +4,7 @@ import type {
   ArrImage,
   Episode,
   HistoryRecordRaw,
+  ManualImportFile,
   Movie,
   Paged,
   QueueRecordRaw,
@@ -90,6 +91,23 @@ export function createArrClient(
           sortDirection: "descending",
           includeSeries: true,
           includeEpisode: true,
+        },
+      }),
+    // blocked-import handling
+    getManualImport: (downloadId: string) =>
+      http.get<ManualImportFile[]>("/api/v3/manualimport", {
+        params: { downloadId, filterExistingFiles: false },
+        timeoutMs: 30000,
+      }),
+    deleteQueueItem: (
+      id: number,
+      opts: { removeFromClient?: boolean; blocklist?: boolean; skipRedownload?: boolean } = {},
+    ) =>
+      http.del(`/api/v3/queue/${id}`, {
+        params: {
+          removeFromClient: opts.removeFromClient ?? true,
+          blocklist: opts.blocklist ?? false,
+          skipRedownload: opts.skipRedownload ?? false,
         },
       }),
     // helpers

@@ -111,6 +111,7 @@ export interface Paged<T> {
 /** Raw record from /api/v3/queue. */
 export interface QueueRecordRaw {
   id: number;
+  downloadId?: string;
   movieId?: number;
   seriesId?: number;
   episodeId?: number;
@@ -120,11 +121,26 @@ export interface QueueRecordRaw {
   timeleft?: string;
   status?: string;
   trackedDownloadState?: string;
-  trackedDownloadStatus?: string;
+  trackedDownloadStatus?: string; // "ok" | "warning" | "error"
+  statusMessages?: { title?: string; messages?: string[] }[];
+  errorMessage?: string;
   quality?: QualityInfo;
   movie?: Movie;
   series?: Series;
   episode?: Episode;
+}
+
+/** A candidate file from /api/v3/manualimport (fields passed back to the
+ *  ManualImport command opaquely for quality/languages). */
+export interface ManualImportFile {
+  path: string;
+  quality?: unknown;
+  languages?: unknown;
+  releaseGroup?: string;
+  movie?: Movie;
+  series?: Series;
+  episodes?: Episode[];
+  rejections?: unknown[];
 }
 
 /** Raw record from /api/v3/history. */
@@ -144,6 +160,8 @@ export interface HistoryRecordRaw {
 /** Normalised download-queue row. */
 export interface QueueItem {
   key: string;
+  id: number; // queue record id (for actions)
+  downloadId?: string;
   kind: MediaKind;
   mediaId: number;
   title: string;
@@ -154,6 +172,10 @@ export interface QueueItem {
   timeleft?: string;
   statusLabel?: string;
   poster?: string;
+  /** import blocked / warning — needs user action. */
+  blocked: boolean;
+  /** human-readable reasons when blocked. */
+  messages: string[];
 }
 
 /** Normalised history (recently imported) row. */
