@@ -9,6 +9,7 @@ import type { ServiceId } from "@/types/service";
 const DEV_PROXY: Partial<Record<ServiceId, string>> = {
   radarr: "/proxy-radarr",
   sonarr: "/proxy-sonarr",
+  glances: "/proxy-glances",
 };
 
 export class HttpError extends Error {

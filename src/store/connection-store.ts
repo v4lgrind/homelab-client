@@ -3,6 +3,7 @@ import { Preferences } from "@capacitor/preferences";
 import { SERVICES, STORAGE_KEYS } from "@/constants";
 import type { ServiceId, ServiceState } from "@/types/service";
 import { createArrClient } from "@/services/arr";
+import { createGlancesClient } from "@/services/glances";
 import { HttpError } from "@/services/http";
 
 function defaultServices(): Record<ServiceId, ServiceState> {
@@ -76,20 +77,36 @@ export const useConnectionStore = defineStore("connection", {
       else await Preferences.remove({ key });
     },
 
-    /** Test one service against its `/api/v3/system/status` endpoint. */
+    /** Test one service's connection. */
     async testService(id: ServiceId): Promise<boolean> {
       const svc = this.services[id];
+      const meta = SERVICES.find((s) => s.id === id)!;
       const key = this.apiKeys[id]?.trim();
-      if (!this.rootDomain.trim() || !svc.subdomain.trim() || !key) {
+
+      if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
         svc.status = "error";
-        svc.error = "Domaine, sous-domaine et clé API requis";
+        svc.error = "Domaine et sous-domaine requis";
         return false;
       }
+      if (meta.authType === "apikey" && !key) {
+        svc.status = "error";
+        svc.error = "Clé API requise";
+        return false;
+      }
+
       svc.status = "testing";
       svc.error = undefined;
-      await this.persistApiKey(id);
       try {
-        const client = createArrClient(id, svc.subdomain, this.rootDomain, key);
+        if (meta.authType === "none") {
+          // Glances: no key, just check the API answers.
+          const client = createGlancesClient(svc.subdomain, this.rootDomain);
+          const s = await client.getStats();
+          svc.version = s.hostname;
+          svc.status = "ok";
+          return true;
+        }
+        await this.persistApiKey(id);
+        const client = createArrClient(id, svc.subdomain, this.rootDomain, key!);
         const status = await client.getSystemStatus();
         svc.version = status.version;
         svc.status = "ok";
