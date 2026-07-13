@@ -27,6 +27,6 @@ export interface ServiceMeta {
 export const SERVICES: ServiceMeta[] = [
   { id: "radarr", name: "Radarr", desc: "Films", defaultSubdomain: "radarr", authType: "apikey", available: true },
   { id: "sonarr", name: "Sonarr", desc: "Séries", defaultSubdomain: "sonarr", authType: "apikey", available: true },
-  { id: "qbittorrent", name: "qBittorrent", desc: "Torrents", defaultSubdomain: "qbittorrent", authType: "userpass", available: false },
+  { id: "qbittorrent", name: "qBittorrent", desc: "Torrents", defaultSubdomain: "qbittorrent", authType: "userpass", available: true },
   { id: "glances", name: "Glances", desc: "Stats serveur", defaultSubdomain: "glances", authType: "none", available: true },
 ];

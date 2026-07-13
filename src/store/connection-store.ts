@@ -4,6 +4,7 @@ import { SERVICES, STORAGE_KEYS } from "@/constants";
 import type { ServiceId, ServiceState } from "@/types/service";
 import { createArrClient } from "@/services/arr";
 import { createGlancesClient } from "@/services/glances";
+import { createQbitClient } from "@/services/qbittorrent";
 import { HttpError } from "@/services/http";
 
 function defaultServices(): Record<ServiceId, ServiceState> {
@@ -70,6 +71,11 @@ export const useConnectionStore = defineStore("connection", {
       this.services[id].status = "idle";
     },
 
+    setUsername(id: ServiceId, value: string) {
+      this.services[id].username = value.trim();
+      this.services[id].status = "idle";
+    },
+
     async persistApiKey(id: ServiceId) {
       const key = STORAGE_KEYS.apiKeyPrefix + id;
       const value = this.apiKeys[id]?.trim();
@@ -93,6 +99,11 @@ export const useConnectionStore = defineStore("connection", {
         svc.error = "Clé API requise";
         return false;
       }
+      if (meta.authType === "userpass" && (!svc.username?.trim() || !key)) {
+        svc.status = "error";
+        svc.error = "Utilisateur et mot de passe requis";
+        return false;
+      }
 
       svc.status = "testing";
       svc.error = undefined;
@@ -102,6 +113,15 @@ export const useConnectionStore = defineStore("connection", {
           const client = createGlancesClient(svc.subdomain, this.rootDomain);
           const s = await client.getStats();
           svc.version = s.hostname;
+          svc.status = "ok";
+          return true;
+        }
+        if (meta.authType === "userpass") {
+          // qBittorrent: login with username + password (password stored as key).
+          await this.persistApiKey(id);
+          const client = createQbitClient(svc.subdomain, this.rootDomain);
+          await client.login(svc.username!.trim(), key!);
+          svc.version = await client.getAppVersion().catch(() => undefined);
           svc.status = "ok";
           return true;
         }

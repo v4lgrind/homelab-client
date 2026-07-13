@@ -6,6 +6,8 @@ export type ServiceStatus = "idle" | "testing" | "ok" | "error";
 export interface ServiceState {
   /** Sub-domain only, e.g. "radarr" (combined with the root domain). */
   subdomain: string;
+  /** Username for userpass services (e.g. qBittorrent); non-secret, persisted. */
+  username?: string;
   status: ServiceStatus;
   /** App version reported by the service on a successful test. */
   version?: string;

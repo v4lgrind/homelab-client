@@ -25,6 +25,7 @@ export default defineConfig(({ mode }) => {
   addProxy("/proxy-radarr", env.DEV_RADARR_URL);
   addProxy("/proxy-sonarr", env.DEV_SONARR_URL);
   addProxy("/proxy-glances", env.DEV_GLANCES_URL);
+  addProxy("/proxy-qbittorrent", env.DEV_QBITTORRENT_URL);
 
   return {
     plugins: [vue(), tailwindcss()],

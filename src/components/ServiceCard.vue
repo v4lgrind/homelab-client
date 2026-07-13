@@ -6,6 +6,7 @@ import {
   ArrowDownToLine,
   Activity,
   KeyRound,
+  User,
   Check,
   LoaderCircle,
   Eye,
@@ -36,6 +37,10 @@ const subdomain = computed({
 const apiKey = computed({
   get: () => conn.apiKeys[props.id] ?? "",
   set: (v: string) => conn.setApiKey(props.id, v),
+});
+const username = computed({
+  get: () => svc.value.username ?? "",
+  set: (v: string) => conn.setUsername(props.id, v),
 });
 
 const showKey = ref(false);
@@ -139,6 +144,36 @@ function test() {
         <component :is="showKey ? EyeOff : Eye" :size="18" />
       </button>
     </div>
+
+    <!-- username + password (userpass services, e.g. qBittorrent) -->
+    <template v-if="meta.authType === 'userpass'">
+      <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <User :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="username"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
+          placeholder="Utilisateur"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <KeyRound :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="apiKey"
+          :type="showKey ? 'text' : 'password'"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
+          placeholder="Mot de passe"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <button class="text-muted shrink-0" type="button" @click="showKey = !showKey">
+          <component :is="showKey ? EyeOff : Eye" :size="18" />
+        </button>
+      </div>
+    </template>
 
     <!-- action / result -->
     <div class="flex items-center gap-2 flex-wrap">
