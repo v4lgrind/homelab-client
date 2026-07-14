@@ -1,0 +1,59 @@
+name: PR Build Check
+
+# Verifies every PR to main compiles end-to-end (types + web + Android APK).
+# Purely a gate: the APK is built but never uploaded or published.
+on:
+  pull_request:
+    branches: [main]
+
+# Only the latest commit of a PR needs checking — cancel superseded runs.
+concurrency:
+  group: pr-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools platforms;android-36 build-tools;36.0.0"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Setup Gradle cache
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build web app
+        run: npm run build:skip-types
+
+      - name: Sync Capacitor
+        run: npx cap sync android
+
+      - name: Build debug APK (not kept)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug
