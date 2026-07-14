@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homelab — Hub (finalisation)</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Outfit', system-ui, sans-serif; background: #0a0c0f; color: #e7ecf2; padding: 36px 30px 80px; -webkit-font-smoothing: antialiased; }
+  h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.02em; }
+  .sub { color: #8b95a3; font-size: 13.5px; margin: 6px 0 30px; }
+  h2 { font-size: 12px; font-weight: 700; color: #6b7480; text-transform: uppercase; letter-spacing: .12em; margin: 30px 0 14px; }
+  .row { display: flex; align-items: flex-end; gap: 26px; flex-wrap: wrap; }
+  .col { display:flex; flex-direction:column; align-items:center; gap:8px; }
+  .lbl { font-size: 10.5px; color: #6b7480; letter-spacing:.04em; }
+  .ico { overflow: hidden; box-shadow: 0 14px 34px -14px rgba(0,0,0,.75); }
+  .sq { border-radius: 23%; }
+  .circle { border-radius: 50%; }
+  .rounded { border-radius: 16%; }
+  .ico svg, .ico { display:block; }
+  .splash { width: 260px; height: 150px; border-radius: 16px; overflow:hidden; border:1px solid #20262e; display:grid; place-items:center; position:relative; }
+  .splash .name { position:absolute; bottom:16px; font-weight:700; font-size:13px; letter-spacing:.02em; }
+  .splash .console { position:absolute; bottom:2px; font-size:9px; letter-spacing:.18em; text-transform:uppercase; }
+  /* home screen */
+  .home { width: 260px; border-radius: 26px; padding: 20px 18px; border:1px solid #20262e; }
+  .home.dark { background: linear-gradient(160deg,#1a2230,#0c0f14); }
+  .home.light { background: linear-gradient(160deg,#dfe7f2,#c3d0e0); }
+  .apps { display:grid; grid-template-columns: repeat(4,1fr); gap:16px 14px; }
+  .app { display:flex; flex-direction:column; align-items:center; gap:5px; }
+  .app .tile { width:46px; height:46px; border-radius:12px; }
+  .app .cap { font-size:8px; }
+  .home.dark .app .cap { color:#c7ced6; }
+  .home.light .app .cap { color:#3a4656; }
+  .ph { border-radius:12px; }
+</style>
+</head>
+<body>
+  <h1>Homelab · piste 03 — Hub</h1>
+  <p class="sub">Version raffinée : glyphe recentré dans la zone de sécurité adaptative, nœuds plus lisibles, dégradé bleu de charte. Choisis la finition (4 vs 6 nœuds), je génère ensuite tous les assets.</p>
+
+  <!-- SVG symbols -->
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#3aa0ff"/><stop offset="1" stop-color="#1560d0"/>
+      </linearGradient>
+      <radialGradient id="hi" cx="0.3" cy="0.25" r="0.9">
+        <stop offset="0" stop-color="#ffffff" stop-opacity=".22"/><stop offset="0.5" stop-color="#ffffff" stop-opacity="0"/>
+      </radialGradient>
+
+      <!-- 4-node hub -->
+      <g id="hub4">
+        <rect width="96" height="96" fill="url(#bg)"/>
+        <rect width="96" height="96" fill="url(#hi)"/>
+        <g stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".9">
+          <line x1="48" y1="48" x2="32" y2="32"/><line x1="48" y1="48" x2="64" y2="32"/>
+          <line x1="48" y1="48" x2="32" y2="64"/><line x1="48" y1="48" x2="64" y2="64"/>
+        </g>
+        <g fill="#fff"><circle cx="32" cy="32" r="6.5"/><circle cx="64" cy="32" r="6.5"/><circle cx="32" cy="64" r="6.5"/><circle cx="64" cy="64" r="6.5"/></g>
+        <circle cx="48" cy="48" r="11.5" fill="#fff"/><circle cx="48" cy="48" r="5" fill="#1f78e6"/>
+      </g>
+
+      <!-- 6-node hub (hex) -->
+      <g id="hub6">
+        <rect width="96" height="96" fill="url(#bg)"/>
+        <rect width="96" height="96" fill="url(#hi)"/>
+        <g stroke="#fff" stroke-width="4.5" stroke-linecap="round" opacity=".9">
+          <line x1="48" y1="48" x2="48" y2="27"/><line x1="48" y1="48" x2="48" y2="69"/>
+          <line x1="48" y1="48" x2="66" y2="37.5"/><line x1="48" y1="48" x2="66" y2="58.5"/>
+          <line x1="48" y1="48" x2="30" y2="37.5"/><line x1="48" y1="48" x2="30" y2="58.5"/>
+        </g>
+        <g fill="#fff"><circle cx="48" cy="27" r="6"/><circle cx="48" cy="69" r="6"/><circle cx="66" cy="37.5" r="6"/><circle cx="66" cy="58.5" r="6"/><circle cx="30" cy="37.5" r="6"/><circle cx="30" cy="58.5" r="6"/></g>
+        <circle cx="48" cy="48" r="11" fill="#fff"/><circle cx="48" cy="48" r="4.6" fill="#1f78e6"/>
+      </g>
+    </defs>
+  </svg>
+
+  <h2>Lisibilité par taille — 4 nœuds (recommandé)</h2>
+  <div class="row">
+    <div class="col"><div class="ico sq" style="width:112px;height:112px"><svg viewBox="0 0 96 96" width="112" height="112"><use href="#hub4"/></svg></div><div class="lbl">112 · squircle</div></div>
+    <div class="col"><div class="ico sq" style="width:64px;height:64px"><svg viewBox="0 0 96 96" width="64" height="64"><use href="#hub4"/></svg></div><div class="lbl">64</div></div>
+    <div class="col"><div class="ico sq" style="width:40px;height:40px"><svg viewBox="0 0 96 96" width="40" height="40"><use href="#hub4"/></svg></div><div class="lbl">40 (notif)</div></div>
+    <div class="col"><div class="ico circle" style="width:72px;height:72px"><svg viewBox="0 0 96 96" width="72" height="72"><use href="#hub4"/></svg></div><div class="lbl">adaptatif ○</div></div>
+    <div class="col"><div class="ico rounded" style="width:72px;height:72px"><svg viewBox="0 0 96 96" width="72" height="72"><use href="#hub4"/></svg></div><div class="lbl">adaptatif ▢</div></div>
+  </div>
+
+  <h2>Variante 6 nœuds (réseau plus dense)</h2>
+  <div class="row">
+    <div class="col"><div class="ico sq" style="width:112px;height:112px"><svg viewBox="0 0 96 96" width="112" height="112"><use href="#hub6"/></svg></div><div class="lbl">112 · squircle</div></div>
+    <div class="col"><div class="ico sq" style="width:64px;height:64px"><svg viewBox="0 0 96 96" width="64" height="64"><use href="#hub6"/></svg></div><div class="lbl">64</div></div>
+    <div class="col"><div class="ico sq" style="width:40px;height:40px"><svg viewBox="0 0 96 96" width="40" height="40"><use href="#hub6"/></svg></div><div class="lbl">40 (notif)</div></div>
+    <div class="col"><div class="ico circle" style="width:72px;height:72px"><svg viewBox="0 0 96 96" width="72" height="72"><use href="#hub6"/></svg></div><div class="lbl">adaptatif ○</div></div>
+  </div>
+
+  <h2>Splash (4 nœuds)</h2>
+  <div class="row">
+    <div class="col">
+      <div class="splash" style="background:#0a0c0f">
+        <svg viewBox="0 0 96 96" width="60" height="60" style="border-radius:14px"><use href="#hub4"/></svg>
+        <span class="name" style="color:#e7ecf2">Homelab</span>
+        <span class="console" style="color:#3a4350">Console</span>
+      </div>
+      <div class="lbl">sombre</div>
+    </div>
+    <div class="col">
+      <div class="splash" style="background:#eef1f5">
+        <svg viewBox="0 0 96 96" width="60" height="60" style="border-radius:14px"><use href="#hub4"/></svg>
+        <span class="name" style="color:#1a2230">Homelab</span>
+        <span class="console" style="color:#9aa6b4">Console</span>
+      </div>
+      <div class="lbl">clair</div>
+    </div>
+  </div>
+
+  <h2>En contexte — écran d'accueil</h2>
+  <div class="row">
+    <div class="home dark">
+      <div class="apps">
+        <div class="app"><div class="tile ph" style="background:#3478f6"></div><span class="cap">Photos</span></div>
+        <div class="app"><div class="tile ph" style="background:#1db954"></div><span class="cap">Spotify</span></div>
+        <div class="app"><div class="tile ico" style="border-radius:12px;overflow:hidden"><svg viewBox="0 0 96 96" width="46" height="46"><use href="#hub4"/></svg></div><span class="cap">Homelab</span></div>
+        <div class="app"><div class="tile ph" style="background:#ff3b30"></div><span class="cap">YouTube</span></div>
+      </div>
+    </div>
+    <div class="home light">
+      <div class="apps">
+        <div class="app"><div class="tile ph" style="background:#3478f6"></div><span class="cap">Photos</span></div>
+        <div class="app"><div class="tile ph" style="background:#1db954"></div><span class="cap">Spotify</span></div>
+        <div class="app"><div class="tile ico" style="border-radius:12px;overflow:hidden"><svg viewBox="0 0 96 96" width="46" height="46"><use href="#hub4"/></svg></div><span class="cap">Homelab</span></div>
+        <div class="app"><div class="tile ph" style="background:#ff3b30"></div><span class="cap">YouTube</span></div>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
