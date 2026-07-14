@@ -73,6 +73,20 @@ npm run cap:sync       # synchronise le web vers android/
 npm run android:build  # build APK debug
 ```
 
+### Signature (keystore debug fixe)
+
+Le build debug est signé par un keystore **fixe et versionné**
+(`android/app/debug.keystore`, identifiants debug standard `android` /
+`androiddebugkey`). Ce n'est **pas** un secret : un keystore debug n'ouvre aucun
+accès. L'intérêt est que **tous** les builds (local + CI) partagent la même
+signature, donc réinstaller un nouvel APK par-dessus l'ancien ne déclenche plus
+l'erreur *« signatures do not match »* — pas besoin de désinstaller d'abord.
+
+> ⚠️ **Transition unique** : l'APK déjà installé avant ce changement était signé
+> par une clé éphémère du CI. Pour passer à la nouvelle signature fixe, il faut
+> désinstaller l'app **une seule fois**. Ensuite, toutes les réinstallations
+> fonctionnent sans désinstaller.
+
 ## Structure
 
 ```
