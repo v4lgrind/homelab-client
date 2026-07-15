@@ -2,10 +2,10 @@ import { defineStore } from "pinia";
 import { Preferences } from "@capacitor/preferences";
 import { Browser } from "@capacitor/browser";
 import { SERVICES, STORAGE_KEYS } from "@/constants";
-import type { ServiceId, ServiceState } from "@/types/service";
+import type { AuthType, ServiceId, ServiceState } from "@/types/service";
 import { createArrClient } from "@/services/arr";
 import { createGlancesClient } from "@/services/glances";
-import { createQbitClient } from "@/services/qbittorrent";
+import { createQbitClient, type QbitConfig } from "@/services/qbittorrent";
 import { createJellyfinClient } from "@/services/jellyfin";
 import { checkPin, createPin, createPlexClient, discoverServers } from "@/services/plex";
 import { HttpError } from "@/services/http";
@@ -39,6 +39,8 @@ interface State {
   services: Record<ServiceId, ServiceState>;
   /** Runtime-only; loaded from / saved to Preferences (never persisted by pinia). */
   apiKeys: Record<ServiceId, string>;
+  /** Runtime-only, like apiKeys — passwords for userpass services. */
+  passwords: Record<ServiceId, string>;
   /** Runtime-only, like apiKeys — the token the Plex server itself accepts. */
   plexServerToken: string;
   secretsLoaded: boolean;
@@ -50,6 +52,7 @@ export const useConnectionStore = defineStore("connection", {
     rootDomain: "",
     services: defaultServices(),
     apiKeys: {} as Record<ServiceId, string>,
+    passwords: {} as Record<ServiceId, string>,
     plexServerToken: "",
     secretsLoaded: false,
     pairing: { jellyfin: { active: false }, plex: { active: false } },
@@ -62,9 +65,41 @@ export const useConnectionStore = defineStore("connection", {
 
   getters: {
     hasKey: (state) => (id: ServiceId) => !!state.apiKeys[id]?.trim(),
+    /** The auth method in effect: the user's pick, else the service's default. */
+    authTypeOf:
+      (state) =>
+      (id: ServiceId): AuthType => {
+        const meta = SERVICES.find((s) => s.id === id)!;
+        const chosen = state.services[id]?.authType;
+        return chosen && meta.authTypes?.includes(chosen) ? chosen : meta.authType;
+      },
+    /**
+     * How to reach qBittorrent right now, or null if it is not configured.
+     * Single source of truth for both the connection test and the torrents
+     * store, so the two can never disagree about which mode is active.
+     */
+    qbitConfig(state): QbitConfig | null {
+      const svc = state.services.qbittorrent;
+      if (this.authTypeOf("qbittorrent") === "proxyurl") {
+        const proxyUrl = state.apiKeys.qbittorrent?.trim();
+        return proxyUrl ? { mode: "proxy", proxyUrl } : null;
+      }
+      const username = svc.username?.trim();
+      const password = state.passwords.qbittorrent;
+      if (!username || !password || !state.rootDomain.trim() || !svc.subdomain.trim()) return null;
+      return {
+        mode: "direct",
+        subdomain: svc.subdomain,
+        rootDomain: state.rootDomain,
+        username,
+        password,
+      };
+    },
     isConfigured(state): boolean {
       if (!state.rootDomain.trim()) return false;
-      return SERVICES.some((s) => s.available && !!state.apiKeys[s.id]?.trim());
+      return SERVICES.some(
+        (s) => s.available && (!!state.apiKeys[s.id]?.trim() || !!state.passwords[s.id]?.trim()),
+      );
     },
   },
 
@@ -74,6 +109,8 @@ export const useConnectionStore = defineStore("connection", {
         try {
           const { value } = await Preferences.get({ key: STORAGE_KEYS.apiKeyPrefix + s.id });
           if (value) this.apiKeys[s.id] = value;
+          const pw = await Preferences.get({ key: STORAGE_KEYS.passwordPrefix + s.id });
+          if (pw.value) this.passwords[s.id] = pw.value;
         } catch {
           /* ignore — service simply stays unconfigured */
         }
@@ -106,9 +143,29 @@ export const useConnectionStore = defineStore("connection", {
       this.services[id].status = "idle";
     },
 
+    setPassword(id: ServiceId, value: string) {
+      this.passwords[id] = value;
+      this.services[id].status = "idle";
+    },
+
+    /** Switch a service between the auth methods it supports. */
+    setAuthType(id: ServiceId, value: AuthType) {
+      this.services[id].authType = value;
+      this.services[id].status = "idle";
+      this.services[id].error = undefined;
+      this.services[id].version = undefined;
+    },
+
     async persistApiKey(id: ServiceId) {
       const key = STORAGE_KEYS.apiKeyPrefix + id;
       const value = this.apiKeys[id]?.trim();
+      if (value) await Preferences.set({ key, value });
+      else await Preferences.remove({ key });
+    },
+
+    async persistPassword(id: ServiceId) {
+      const key = STORAGE_KEYS.passwordPrefix + id;
+      const value = this.passwords[id];
       if (value) await Preferences.set({ key, value });
       else await Preferences.remove({ key });
     },
@@ -255,16 +312,27 @@ export const useConnectionStore = defineStore("connection", {
     /** Test one service's connection. */
     async testService(id: ServiceId): Promise<boolean> {
       const svc = this.services[id];
-      const meta = SERVICES.find((s) => s.id === id)!;
+      const auth = this.authTypeOf(id);
       const key = this.apiKeys[id]?.trim();
 
-      if (meta.authType === "proxyurl") {
+      if (auth === "proxyurl") {
         if (!key) {
           svc.status = "error";
           svc.error = "URL du proxy qui requise";
           return false;
         }
-      } else if (meta.authType === "plexauth") {
+      } else if (auth === "userpass") {
+        if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
+          svc.status = "error";
+          svc.error = "Domaine et sous-domaine requis";
+          return false;
+        }
+        if (!svc.username?.trim() || !this.passwords[id]) {
+          svc.status = "error";
+          svc.error = "Identifiant et mot de passe requis";
+          return false;
+        }
+      } else if (auth === "plexauth") {
         if (!key) {
           svc.status = "error";
           svc.error = "Connecte-toi à Plex d'abord";
@@ -275,7 +343,7 @@ export const useConnectionStore = defineStore("connection", {
           svc.error = "Aucun serveur Plex découvert";
           return false;
         }
-      } else if (meta.authType === "quickconnect") {
+      } else if (auth === "quickconnect") {
         if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
           svc.status = "error";
           svc.error = "Domaine et sous-domaine requis";
@@ -292,7 +360,7 @@ export const useConnectionStore = defineStore("connection", {
           svc.error = "Domaine et sous-domaine requis";
           return false;
         }
-        if (meta.authType === "apikey" && !key) {
+        if (auth === "apikey" && !key) {
           svc.status = "error";
           svc.error = "Clé API requise";
           return false;
@@ -302,7 +370,7 @@ export const useConnectionStore = defineStore("connection", {
       svc.status = "testing";
       svc.error = undefined;
       try {
-        if (meta.authType === "none") {
+        if (auth === "none") {
           // Glances: no key, just check the API answers.
           const client = createGlancesClient(svc.subdomain, this.rootDomain);
           const s = await client.getStats();
@@ -310,17 +378,20 @@ export const useConnectionStore = defineStore("connection", {
           svc.status = "ok";
           return true;
         }
-        if (meta.authType === "proxyurl") {
-          // qBittorrent via qui proxy: the URL (with embedded key) is the auth.
-          await this.persistApiKey(id);
-          const client = createQbitClient(key!);
+        if (auth === "proxyurl" || auth === "userpass") {
+          // Via qui the URL embeds the key and qui holds the session; direct, we
+          // log in ourselves. Either way transfer/info proves we are through.
+          if (auth === "proxyurl") await this.persistApiKey(id);
+          else await this.persistPassword(id);
+
+          const client = createQbitClient(this.qbitConfig!);
           await client.getTransferInfo();
           const v = await client.getAppVersion().catch(() => undefined);
           svc.version = typeof v === "string" ? v.replace(/^v/i, "") : undefined;
           svc.status = "ok";
           return true;
         }
-        if (meta.authType === "quickconnect") {
+        if (auth === "quickconnect") {
           const client = createJellyfinClient(svc.subdomain, this.rootDomain, key!);
           const info = await client.getSystemInfo();
           svc.version = info.Version;
@@ -328,7 +399,7 @@ export const useConnectionStore = defineStore("connection", {
           svc.status = "ok";
           return true;
         }
-        if (meta.authType === "plexauth") {
+        if (auth === "plexauth") {
           const client = createPlexClient(svc.baseUrl!, this.plexServerToken || key!);
           const identity = await client.getIdentity();
           svc.version = identity.MediaContainer?.version;
@@ -351,8 +422,10 @@ export const useConnectionStore = defineStore("connection", {
 
     async resetService(id: ServiceId) {
       this.apiKeys[id] = "";
+      this.passwords[id] = "";
       this.services[id] = { subdomain: SERVICES.find((s) => s.id === id)!.defaultSubdomain, status: "idle" };
       await Preferences.remove({ key: STORAGE_KEYS.apiKeyPrefix + id });
+      await Preferences.remove({ key: STORAGE_KEYS.passwordPrefix + id });
       if (id === "plex") await this.clearPlexServerToken();
     },
 
@@ -361,7 +434,9 @@ export const useConnectionStore = defineStore("connection", {
       this.services = defaultServices();
       for (const s of SERVICES) {
         this.apiKeys[s.id] = "";
+        this.passwords[s.id] = "";
         await Preferences.remove({ key: STORAGE_KEYS.apiKeyPrefix + s.id });
+        await Preferences.remove({ key: STORAGE_KEYS.passwordPrefix + s.id });
       }
       await this.clearPlexServerToken();
     },

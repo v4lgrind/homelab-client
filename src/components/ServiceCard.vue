@@ -8,6 +8,7 @@ import {
   MonitorPlay,
   Clapperboard,
   KeyRound,
+  User,
   Link,
   ExternalLink,
   Server,
@@ -18,8 +19,8 @@ import {
   EyeOff,
   type LucideIcon,
 } from "@lucide/vue";
-import { SERVICES } from "@/constants";
-import type { ServiceId } from "@/types/service";
+import { AUTH_LABELS, SERVICES } from "@/constants";
+import type { AuthType, ServiceId } from "@/types/service";
 import { useConnectionStore } from "@/store/connection-store";
 
 const props = defineProps<{ id: ServiceId }>();
@@ -27,6 +28,8 @@ const props = defineProps<{ id: ServiceId }>();
 const conn = useConnectionStore();
 const meta = computed(() => SERVICES.find((s) => s.id === props.id)!);
 const svc = computed(() => conn.services[props.id]);
+/** The user's pick when the service offers a choice, else its only method. */
+const auth = computed<AuthType>(() => conn.authTypeOf(props.id));
 
 const ICONS: Record<ServiceId, LucideIcon> = {
   radarr: Film,
@@ -46,17 +49,25 @@ const apiKey = computed({
   set: (v: string) => conn.setApiKey(props.id, v),
 });
 
+const username = computed({
+  get: () => svc.value.username ?? "",
+  set: (v: string) => conn.setUsername(props.id, v),
+});
+const password = computed({
+  get: () => conn.passwords[props.id] ?? "",
+  set: (v: string) => conn.setPassword(props.id, v),
+});
+
 const showKey = ref(false);
+const showPassword = ref(false);
 const testing = computed(() => svc.value.status === "testing");
 
 /** Plex has no sub-domain: plex.tv hands the address over after sign-in. */
-const needsSubdomain = computed(
-  () => meta.value.authType !== "proxyurl" && meta.value.authType !== "plexauth",
-);
+const needsSubdomain = computed(() => auth.value !== "proxyurl" && auth.value !== "plexauth");
 
 /** Services signed into interactively rather than by pasting a key. */
 const isInteractive = computed(
-  () => meta.value.authType === "quickconnect" || meta.value.authType === "plexauth",
+  () => auth.value === "quickconnect" || auth.value === "plexauth",
 );
 const pairing = computed(() =>
   props.id === "jellyfin" || props.id === "plex" ? conn.pairing[props.id] : undefined,
@@ -143,6 +154,20 @@ async function disconnect() {
       </div>
     </div>
 
+    <!-- auth picker, for services reachable more than one way (qBittorrent) -->
+    <div v-if="meta.authTypes" class="flex gap-1 p-1 rounded-[14px] bg-field border border-field-border">
+      <button
+        v-for="t in meta.authTypes"
+        :key="t"
+        type="button"
+        class="flex-1 py-1.5 rounded-[10px] text-[12.5px] font-semibold transition"
+        :class="auth === t ? 'bg-accent text-accent-ink' : 'text-sub active:scale-95'"
+        @click="conn.setAuthType(id, t)"
+      >
+        {{ AUTH_LABELS[t] ?? t }}
+      </button>
+    </div>
+
     <!-- subdomain (not needed for the qui proxy URL, nor for auto-discovered Plex) -->
     <div v-if="needsSubdomain" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
       <input
@@ -158,8 +183,38 @@ async function disconnect() {
       </span>
     </div>
 
+    <!-- username + password (qBittorrent, direct) -->
+    <template v-if="auth === 'userpass'">
+      <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <User :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="username"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
+          placeholder="Identifiant"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <KeyRound :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="password"
+          :type="showPassword ? 'text' : 'password'"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
+          placeholder="Mot de passe"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <button class="text-muted shrink-0" type="button" @click="showPassword = !showPassword">
+          <component :is="showPassword ? EyeOff : Eye" :size="18" />
+        </button>
+      </div>
+    </template>
+
     <!-- api key (only for services authenticated by key) -->
-    <div v-if="meta.authType === 'apikey'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+    <div v-if="auth === 'apikey'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
       <KeyRound :size="16" class="text-muted shrink-0" />
       <input
         v-model="apiKey"
@@ -176,7 +231,7 @@ async function disconnect() {
     </div>
 
     <!-- qui proxy URL (qBittorrent) -->
-    <div v-if="meta.authType === 'proxyurl'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+    <div v-if="auth === 'proxyurl'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
       <Link :size="16" class="text-muted shrink-0" />
       <input
         v-model="apiKey"
@@ -207,7 +262,7 @@ async function disconnect() {
 
     <!-- Plex sign-in happens in the browser, on plex.tv -->
     <div
-      v-else-if="pairing?.active && meta.authType === 'plexauth'"
+      v-else-if="pairing?.active && auth === 'plexauth'"
       class="rounded-[14px] bg-field border border-field-border px-3 py-3 flex items-center gap-2 justify-center"
     >
       <LoaderCircle :size="14" class="animate-spin text-sub" />
@@ -215,7 +270,7 @@ async function disconnect() {
     </div>
 
     <!-- discovered Plex server -->
-    <p v-if="meta.authType === 'plexauth' && svc.serverName" class="text-[11.5px] text-sub px-1 flex items-center gap-1.5">
+    <p v-if="auth === 'plexauth' && svc.serverName" class="text-[11.5px] text-sub px-1 flex items-center gap-1.5">
       <Server :size="13" class="text-muted shrink-0" />
       <span class="truncate">{{ svc.serverName }}</span>
     </p>
@@ -230,8 +285,8 @@ async function disconnect() {
           class="self-start px-3.5 py-2 rounded-xl bg-accent text-accent-ink text-[12.5px] font-semibold flex items-center gap-1.5 active:scale-95 transition"
           @click="connect"
         >
-          <component :is="meta.authType === 'plexauth' ? ExternalLink : Link" :size="14" />
-          {{ meta.authType === "plexauth" ? "Se connecter à Plex" : "Quick Connect" }}
+          <component :is="auth === 'plexauth' ? ExternalLink : Link" :size="14" />
+          {{ auth === "plexauth" ? "Se connecter à Plex" : "Quick Connect" }}
         </button>
         <button
           v-else

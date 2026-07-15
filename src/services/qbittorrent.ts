@@ -12,31 +12,63 @@ function encodeForm(form: Form): string {
 }
 
 /**
- * qBittorrent Web API (v2) client — reached through the qui "Client Proxy":
- * the proxy URL embeds the API key and qui maintains the qBittorrent session,
- * so there is no login step and endpoints (`/api/v2/...`) are appended to it.
- * Bodies are form-urlencoded, not JSON.
+ * Two ways to reach qBittorrent:
+ * - proxy: qui's Client Proxy. The URL embeds the API key and qui keeps the
+ *   qBittorrent session, so there is no login step.
+ * - direct: qBittorrent's own Web API, which needs a username/password login
+ *   that returns an SID cookie.
  */
-export function createQbitClient(proxyUrl: string) {
-  // On device: hit the qui proxy URL directly. In dev: go through the Vite
-  // proxy (/proxy-qbittorrent → DEV_QBITTORRENT_URL) to dodge CORS.
-  const base = Capacitor.isNativePlatform()
-    ? proxyUrl.replace(/\/+$/, "")
-    : window.location.origin + "/proxy-qbittorrent";
+export type QbitConfig =
+  | { mode: "proxy"; proxyUrl: string }
+  | { mode: "direct"; subdomain: string; rootDomain: string; username: string; password: string };
 
-  async function req<T>(
+function baseUrlFor(cfg: QbitConfig): string {
+  if (cfg.mode === "proxy") {
+    // On device: hit the qui proxy URL directly. In dev: go through the Vite
+    // proxy (/proxy-qbittorrent → DEV_QBITTORRENT_URL) to dodge CORS.
+    return Capacitor.isNativePlatform()
+      ? cfg.proxyUrl.replace(/\/+$/, "")
+      : window.location.origin + "/proxy-qbittorrent";
+  }
+  return Capacitor.isNativePlatform()
+    ? `https://${cfg.subdomain}.${cfg.rootDomain}`
+    : window.location.origin + "/proxy-qbittorrent-direct";
+}
+
+/** Pull the session id out of Set-Cookie; header casing varies by platform. */
+function extractSid(headers: Record<string, string> | undefined): string | undefined {
+  if (!headers) return undefined;
+  const raw = Object.entries(headers).find(([k]) => k.toLowerCase() === "set-cookie")?.[1];
+  return raw ? /SID=([^;]+)/.exec(raw)?.[1] : undefined;
+}
+
+/**
+ * qBittorrent Web API (v2) client. Bodies are form-urlencoded, not JSON.
+ */
+export function createQbitClient(cfg: QbitConfig) {
+  const base = baseUrlFor(cfg);
+  const native = Capacitor.isNativePlatform();
+  let sid: string | undefined;
+  // Tracked separately from `sid`: in the browser the SID lands in a cookie we
+  // are not allowed to read, so a successful login is all we can observe.
+  let loggedIn = false;
+
+  async function raw(
     path: string,
     opts: { method?: "GET" | "POST"; form?: Form; timeoutMs?: number } = {},
-  ): Promise<T> {
+  ) {
     const headers: Record<string, string> = {};
     let data: string | undefined;
     if (opts.form) {
       headers["Content-Type"] = "application/x-www-form-urlencoded";
       data = encodeForm(opts.form);
     }
-    let res;
+    // The browser owns the Cookie header and forbids setting it from JS; in dev
+    // it replays the SID itself since the Vite proxy keeps us same-origin.
+    if (native && sid) headers["Cookie"] = `SID=${sid}`;
+
     try {
-      res = await CapacitorHttp.request({
+      return await CapacitorHttp.request({
         url: base + path,
         method: opts.method ?? "GET",
         headers,
@@ -47,8 +79,53 @@ export function createQbitClient(proxyUrl: string) {
     } catch (e) {
       throw new HttpError(`Service injoignable (${(e as Error)?.message ?? "réseau"})`, 0, "network");
     }
+  }
+
+  async function login(): Promise<void> {
+    if (cfg.mode !== "direct") return;
+    const res = await raw("/api/v2/auth/login", {
+      method: "POST",
+      form: { username: cfg.username, password: cfg.password },
+    });
+    // qBittorrent answers 200 with the body "Fails." on bad credentials, and
+    // 403 when it has banned the IP after too many attempts.
+    if (res.status === 403) {
+      throw new HttpError("Trop de tentatives — qBittorrent a banni l'IP temporairement", 403, "auth");
+    }
+    if (typeof res.data === "string" && res.data.trim().startsWith("Fails")) {
+      throw new HttpError("Identifiants qBittorrent refusés", 401, "auth");
+    }
+    if (res.status < 200 || res.status >= 300) {
+      throw new HttpError(`Échec du login (${res.status})`, res.status, "auth");
+    }
+    sid = extractSid(res.headers as Record<string, string>);
+    loggedIn = true;
+  }
+
+  async function req<T>(
+    path: string,
+    opts: { method?: "GET" | "POST"; form?: Form; timeoutMs?: number } = {},
+  ): Promise<T> {
+    if (cfg.mode === "direct" && !loggedIn) await login();
+
+    let res = await raw(path, opts);
+    // A direct session expires server-side; log back in once and retry rather
+    // than surfacing a spurious auth error.
+    if (res.status === 403 && cfg.mode === "direct") {
+      loggedIn = false;
+      sid = undefined;
+      await login();
+      res = await raw(path, opts);
+    }
+
     const status = res.status;
-    if (status === 401 || status === 403) throw new HttpError("Proxy qui refusé (clé invalide ?)", status, "auth");
+    if (status === 401 || status === 403) {
+      throw new HttpError(
+        cfg.mode === "proxy" ? "Proxy qui refusé (clé invalide ?)" : "Identifiants qBittorrent refusés",
+        status,
+        "auth",
+      );
+    }
     if (status === 404) throw new HttpError("Endpoint introuvable", 404, "notfound");
     if (status < 200 || status >= 300) {
       throw new HttpError(`Erreur ${status}`, status, status >= 500 ? "server" : "unknown");
@@ -71,6 +148,7 @@ export function createQbitClient(proxyUrl: string) {
 
   return {
     base,
+    login,
     getAppVersion: () => req<string>("/api/v2/app/version"),
     getTorrents: () => req<QbitTorrentRaw[]>("/api/v2/torrents/info"),
     getTransferInfo: () => req<QbitTransfer>("/api/v2/transfer/info"),

@@ -2,6 +2,18 @@ export type ServiceId = "radarr" | "sonarr" | "qbittorrent" | "glances" | "jelly
 
 export type ServiceStatus = "idle" | "testing" | "ok" | "error";
 
+/**
+ * How the app obtains and sends credentials for a service.
+ * - apikey       : user pastes a key, sent as X-Api-Key (*arr)
+ * - userpass     : username + password login (qBittorrent, direct)
+ * - proxyurl     : the URL itself carries the key (qBittorrent via qui)
+ * - quickconnect : Jellyfin Quick Connect — the app asks for a code, the user
+ *                  approves it from an already-signed-in Jellyfin session
+ * - plexauth     : Plex PIN flow on plex.tv, then the server is auto-discovered
+ * - none         : open API (Glances)
+ */
+export type AuthType = "apikey" | "userpass" | "proxyurl" | "quickconnect" | "plexauth" | "none";
+
 /** Per-service configuration held in the connection store. */
 export interface ServiceState {
   /** Sub-domain only, e.g. "radarr" (combined with the root domain). */
@@ -11,6 +23,12 @@ export interface ServiceState {
    * the root domain (Plex: plex.tv hands it over after sign-in).
    */
   baseUrl?: string;
+  /**
+   * Which of the service's supported auth methods the user picked. Only set for
+   * services offering a choice (qBittorrent: qui proxy or direct login);
+   * otherwise the service's single authType applies.
+   */
+  authType?: AuthType;
   /** Username for userpass services (e.g. qBittorrent); non-secret, persisted. */
   username?: string;
   /** Server name reported by the service (Jellyfin/Plex). */

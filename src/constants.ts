@@ -1,4 +1,6 @@
-import type { ServiceId } from "@/types/service";
+import type { AuthType, ServiceId } from "@/types/service";
+
+export type { AuthType };
 
 export const APP_NAME = "Homelab";
 
@@ -7,6 +9,12 @@ export const STORAGE_KEYS = {
   theme: "homelab_theme",
   /** API keys are stored per service: `homelab_apikey_<serviceId>`. */
   apiKeyPrefix: "homelab_apikey_",
+  /**
+   * Passwords for userpass services: `homelab_password_<serviceId>`. Kept apart
+   * from apiKeyPrefix so a service offering both auth methods (qBittorrent) does
+   * not lose one set of credentials when the user tries the other.
+   */
+  passwordPrefix: "homelab_password_",
   /**
    * Plex needs two secrets: the account token (under apiKeyPrefix, used to talk
    * to plex.tv and re-discover servers) and this server-scoped token, which is
@@ -17,32 +25,41 @@ export const STORAGE_KEYS = {
 
 export type ThemeMode = "auto" | "light" | "dark";
 
-/**
- * How the app obtains and sends credentials for a service.
- * - apikey       : user pastes a key, sent as X-Api-Key (*arr)
- * - proxyurl     : the URL itself carries the key (qBittorrent via qui)
- * - quickconnect : Jellyfin Quick Connect — the app asks for a code, the user
- *                  approves it from an already-signed-in Jellyfin session
- * - plexauth     : Plex PIN flow on plex.tv, then the server is auto-discovered
- * - none         : open API (Glances)
- */
-export type AuthType = "apikey" | "userpass" | "proxyurl" | "quickconnect" | "plexauth" | "none";
-
 export interface ServiceMeta {
   id: ServiceId;
   name: string;
   desc: string;
   defaultSubdomain: string;
-  /** How the app authenticates to this service. */
+  /** How the app authenticates to this service, unless the user picks another. */
   authType: AuthType;
+  /**
+   * Every auth method this service supports, when there is a choice to offer.
+   * Omitted means authType is the only option.
+   */
+  authTypes?: AuthType[];
   /** Whether this module is implemented yet (others show "À venir"). */
   available: boolean;
 }
 
+/** Labels for the auth picker, kept short enough for a segmented control. */
+export const AUTH_LABELS: Partial<Record<AuthType, string>> = {
+  proxyurl: "Via qui",
+  userpass: "Direct",
+};
+
 export const SERVICES: ServiceMeta[] = [
   { id: "radarr", name: "Radarr", desc: "Films", defaultSubdomain: "radarr", authType: "apikey", available: true },
   { id: "sonarr", name: "Sonarr", desc: "Séries", defaultSubdomain: "sonarr", authType: "apikey", available: true },
-  { id: "qbittorrent", name: "qBittorrent", desc: "Torrents", defaultSubdomain: "qui", authType: "proxyurl", available: true },
+  // Defaults to qui's proxy, but works against a plain qBittorrent too.
+  {
+    id: "qbittorrent",
+    name: "qBittorrent",
+    desc: "Torrents",
+    defaultSubdomain: "qbittorrent",
+    authType: "proxyurl",
+    authTypes: ["proxyurl", "userpass"],
+    available: true,
+  },
   { id: "glances", name: "Glances", desc: "Stats serveur", defaultSubdomain: "glances", authType: "none", available: true },
   { id: "jellyfin", name: "Jellyfin", desc: "Serveur média", defaultSubdomain: "jellyfin", authType: "quickconnect", available: true },
   // Plex needs no subdomain: plex.tv hands us the server address after sign-in.

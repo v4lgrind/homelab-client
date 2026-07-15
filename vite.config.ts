@@ -38,6 +38,7 @@ export default defineConfig(({ mode }) => {
   addProxy("/proxy-glances", env.DEV_GLANCES_URL);
   addProxy("/proxy-jellyfin", env.DEV_JELLYFIN_URL);
   addProxy("/proxy-qbittorrent", env.DEV_QBITTORRENT_URL, true);
+  addProxy("/proxy-qbittorrent-direct", env.DEV_QBITTORRENT_DIRECT_URL, true);
   // Plex needs no entry: plex.tv and the plex.direct servers both send
   // permissive CORS headers (Plex's own web app depends on it).
 
