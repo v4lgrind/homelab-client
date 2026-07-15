@@ -159,11 +159,15 @@ export function createPlexClient(baseUrl: string, token: string) {
       return http.get<PlexSessionsResponse>("/status/sessions", { headers: await plexHeaders() });
     },
 
-    /** Poster for a session's item, resized by the server to keep it small. */
+    /**
+     * Poster for a session's item, resized by the server to keep it small.
+     * Sized for the card at 3x pixel density — asking for the CSS size alone
+     * makes it soft on a phone screen.
+     */
     imageUrl(thumb: string): string {
       const params = new URLSearchParams({
-        width: "180",
-        height: "270",
+        width: "210",
+        height: "315",
         minSize: "1",
         upscale: "1",
         url: thumb,

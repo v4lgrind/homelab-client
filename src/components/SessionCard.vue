@@ -34,9 +34,9 @@ const bitrate = computed(() => formatBitrate(props.session.bitrateKbps));
     class="flex gap-3 bg-surface border border-border rounded-[18px] p-3 session-card"
     :class="{ 'opacity-60': session.paused }"
   >
-    <div class="relative w-[46px] h-[69px] rounded-[9px] overflow-hidden shrink-0">
-      <LazyImg :src="session.posterUrl" :alt="session.title" class="w-full h-full rounded-[9px]">
-        <template #fallback><Film :size="16" /></template>
+    <div class="relative w-[68px] h-[102px] rounded-[10px] overflow-hidden shrink-0">
+      <LazyImg :src="session.posterUrl" :alt="session.title" class="w-full h-full rounded-[10px]">
+        <template #fallback><Film :size="20" /></template>
       </LazyImg>
       <!-- Server accent, so a glance attributes the stream without reading. -->
       <span class="absolute inset-x-0 bottom-0 h-[3px]" :style="{ background: serverColor }" />
@@ -108,6 +108,6 @@ const bitrate = computed(() => formatBitrate(props.session.bitrateKbps));
 /* Same trick as PosterCard: skip layout/paint for cards scrolled out of view. */
 .session-card {
   content-visibility: auto;
-  contain-intrinsic-size: auto 93px;
+  contain-intrinsic-size: auto 126px;
 }
 </style>

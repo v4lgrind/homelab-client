@@ -92,9 +92,13 @@ export function createJellyfinClient(host: string, token = "") {
     /** Active playback sessions. Requires the token to belong to an admin. */
     getSessions: () => http.get<JellyfinSessionRaw[]>("/Sessions", { params: { activeWithinSeconds: 60 } }),
 
-    /** Poster for a session's item, authenticated by the token in the URL. */
+    /**
+     * Poster for a session's item, authenticated by the token in the URL.
+     * Sized for the card at 3x pixel density — asking for the CSS size alone
+     * makes it soft on a phone screen.
+     */
     imageUrl: (itemId: string) =>
-      `${base}/Items/${itemId}/Images/Primary?maxWidth=180&quality=90&api_key=${encodeURIComponent(token)}`,
+      `${base}/Items/${itemId}/Images/Primary?maxWidth=210&quality=90&api_key=${encodeURIComponent(token)}`,
   };
 }
 
