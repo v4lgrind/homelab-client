@@ -10,30 +10,42 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
   radarr: "/proxy-radarr",
   sonarr: "/proxy-sonarr",
   glances: "/proxy-glances",
+  jellyfin: "/proxy-jellyfin",
   qbittorrent: "/proxy-qbittorrent",
 };
 
 export class HttpError extends Error {
+  // Declared explicitly rather than as constructor parameter properties, which
+  // erasableSyntaxOnly forbids.
+  readonly status: number;
+  readonly kind: "auth" | "notfound" | "network" | "server" | "unknown";
+
   constructor(
     message: string,
-    readonly status: number,
-    readonly kind: "auth" | "notfound" | "network" | "server" | "unknown",
+    status: number,
+    kind: "auth" | "notfound" | "network" | "server" | "unknown",
   ) {
     super(message);
     this.name = "HttpError";
+    this.status = status;
+    this.kind = kind;
   }
 }
 
-/** Build the base URL for a service given the user's root domain + subdomain. */
-export function serviceBaseUrl(id: ServiceId, subdomain: string, rootDomain: string): string {
+/**
+ * Build the base URL for a service from its resolved hostname. Resolving that
+ * host (root domain + subdomain, or a per-service override) is the connection
+ * store's job — see its `hostOf` getter.
+ */
+export function serviceBaseUrl(id: ServiceId, host: string): string {
   if (Capacitor.isNativePlatform()) {
-    return `https://${subdomain}.${rootDomain}`;
+    return `https://${host}`;
   }
   const proxy = DEV_PROXY[id];
   if (proxy) return window.location.origin + proxy;
   // No dev proxy configured for this service → will likely hit CORS in the
   // browser, but works once running on device.
-  return `https://${subdomain}.${rootDomain}`;
+  return `https://${host}`;
 }
 
 export interface RequestOpts {
@@ -59,17 +71,27 @@ function buildUrl(base: string, path: string, params?: RequestOpts["params"]): s
 /**
  * Thin HTTP client scoped to one service. Injects the API key on every
  * request and normalises errors into {@link HttpError}.
+ *
+ * The header carrying the key differs per vendor: *arr use X-Api-Key, Jellyfin
+ * X-Emby-Token, Plex X-Plex-Token — hence authHeader.
  */
 export class ServiceHttp {
-  constructor(
-    private readonly baseUrl: string,
-    private readonly apiKey: string,
-  ) {}
+  private readonly baseUrl: string;
+  private readonly apiKey: string;
+  private readonly authHeader: string;
+
+  constructor(baseUrl: string, apiKey: string, authHeader = "X-Api-Key") {
+    this.baseUrl = baseUrl;
+    this.apiKey = apiKey;
+    this.authHeader = authHeader;
+  }
 
   async request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
     const url = buildUrl(this.baseUrl, path, opts.params);
     const headers: Record<string, string> = {
-      "X-Api-Key": this.apiKey,
+      // Omit the header entirely when we have no key: plex.tv rejects an empty
+      // X-Plex-Token, and the PIN flow runs before any token exists.
+      ...(this.apiKey ? { [this.authHeader]: this.apiKey } : {}),
       Accept: "application/json",
       ...(opts.data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...opts.headers,

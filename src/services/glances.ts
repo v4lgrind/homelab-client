@@ -61,8 +61,8 @@ function normalize(a: GlancesAll): GlancesStats {
   };
 }
 
-export function createGlancesClient(subdomain: string, rootDomain: string) {
-  const base = serviceBaseUrl("glances", subdomain, rootDomain);
+export function createGlancesClient(host: string) {
+  const base = serviceBaseUrl("glances", host);
   const http = new ServiceHttp(base, ""); // Glances API is bypassed — no key
   let apiVer = 4;
 

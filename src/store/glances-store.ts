@@ -20,8 +20,8 @@ export const useGlancesStore = defineStore("glances", {
   actions: {
     async fetch(force = false) {
       const conn = useConnectionStore();
-      const sub = conn.services.glances.subdomain;
-      if (!conn.rootDomain.trim() || !sub.trim()) {
+      const host = conn.hostOf("glances");
+      if (!host) {
         this.state = "error";
         this.error = "Glances n'est pas configuré";
         return;
@@ -29,7 +29,7 @@ export const useGlancesStore = defineStore("glances", {
       if (this.state === "idle" || (force && !this.stats)) this.state = "loading";
       this.error = undefined;
       try {
-        const client = createGlancesClient(sub, conn.rootDomain);
+        const client = createGlancesClient(host);
         const stats = await client.getStats();
         this.stats = stats;
         this.cpuHistory = [...this.cpuHistory, stats.cpu].slice(-MAX_HISTORY);

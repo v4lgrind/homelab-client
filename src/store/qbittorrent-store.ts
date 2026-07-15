@@ -1,5 +1,8 @@
 import { defineStore } from "pinia";
 import { createQbitClient, type QbitClient } from "@/services/qbittorrent";
+
+/** Rebuilt whenever the connection config changes; keyed by that config. */
+let cachedClient: { key: string; client: QbitClient } | undefined;
 import { useConnectionStore } from "@/store/connection-store";
 import { HttpError } from "@/services/http";
 import type {
@@ -83,11 +86,19 @@ export const useQbitStore = defineStore("qbittorrent", {
   },
 
   actions: {
-    /** Run a client call against the qui proxy (session handled by qui). */
+    /**
+     * Run a client call against whichever qBittorrent connection is configured.
+     * The client is cached because a direct one holds a login session: building
+     * a fresh one per call would re-authenticate on every poll.
+     */
     _run<T>(fn: (c: QbitClient) => Promise<T>): Promise<T> {
       const conn = useConnectionStore();
-      const client = createQbitClient(conn.apiKeys.qbittorrent?.trim() ?? "");
-      return fn(client);
+      const cfg = conn.qbitConfig;
+      if (!cfg) return Promise.reject(new HttpError("qBittorrent non configuré", 0, "auth"));
+
+      const key = JSON.stringify(cfg);
+      if (cachedClient?.key !== key) cachedClient = { key, client: createQbitClient(cfg) };
+      return fn(cachedClient.client);
     },
 
     async fetch(force = false) {

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, useRoute } from "vue-router";
-import { LayoutGrid, Search, ArrowDownToLine, ArrowDownUp, Gauge, Settings, type LucideIcon } from "@lucide/vue";
+import { LayoutGrid, Search, ArrowDownToLine, ArrowDownUp, Server, Settings, type LucideIcon } from "@lucide/vue";
 
 const route = useRoute();
 
@@ -9,7 +9,7 @@ const items: { name: string; to: string; label: string; icon: LucideIcon }[] = [
   { name: "search", to: "/search", label: "Recherche", icon: Search },
   { name: "activity", to: "/activity", label: "Activité", icon: ArrowDownToLine },
   { name: "torrents", to: "/torrents", label: "Torrents", icon: ArrowDownUp },
-  { name: "stats", to: "/stats", label: "Stats", icon: Gauge },
+  { name: "stats", to: "/stats", label: "Serveur", icon: Server },
   { name: "settings", to: "/settings", label: "Réglages", icon: Settings },
 ];
 </script>

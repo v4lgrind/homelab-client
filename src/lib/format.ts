@@ -71,6 +71,22 @@ export function formatSpeed(bytesPerSec?: number): string {
   return s ? `${s}/s` : "0 o/s";
 }
 
+/** Playback position in ms → "48:12" / "2:06:30" (hours only when needed). */
+export function formatClock(ms?: number): string {
+  const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
+  const ss = String(s).padStart(2, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${ss}` : `${m}:${ss}`;
+}
+
+/** Stream bitrate in kbps → "4.2 Mb/s" / "850 kb/s". */
+export function formatBitrate(kbps?: number): string | undefined {
+  if (!kbps || kbps <= 0) return undefined;
+  return kbps >= 1000 ? `${(kbps / 1000).toFixed(1)} Mb/s` : `${Math.round(kbps)} kb/s`;
+}
+
 /** Minutes → "2h 46" / "48 min". */
 export function formatRuntime(min?: number): string | undefined {
   if (!min || min <= 0) return undefined;

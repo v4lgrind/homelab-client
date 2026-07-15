@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homelab — Dashboard serveur (Jellyfin + Plex)</title>
+<style>
+  :root {
+    --bg: #000; --surface: #121417; --surface-2: #1a1e23; --chip-bg: #191d23;
+    --text: #f2f5f8; --surface-text: #c7ced6; --sub: #8b95a3; --muted: #66707d;
+    --border: #23282f; --accent: #2f9bff; --accent-ink: #04121f;
+    --ok: #35d07f; --warn: #f5a524; --danger: #f4335c;
+    --jellyfin: #aa5cc3; --plex: #e5a00d;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Outfit', system-ui, sans-serif; background: #0a0c0f;
+    color: var(--text); -webkit-font-smoothing: antialiased;
+    display: flex; gap: 28px; padding: 28px; align-items: flex-start; flex-wrap: wrap;
+  }
+  .phone {
+    width: 390px; background: var(--bg); border-radius: 30px; border: 1px solid #1c2027;
+    padding: 52px 18px 100px; position: relative; overflow: hidden;
+  }
+  .caption { font-size: 11px; color: #6b7480; text-align: center; margin-top: 10px; letter-spacing: .05em; }
+  h1 { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; }
+  .head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 13px; background: var(--surface); border: 1px solid var(--border); display: grid; place-items: center; color: var(--sub); }
+  .sec { font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin: 20px 0 10px 2px; }
+  .sec:first-of-type { margin-top: 0; }
+
+  /* ---- session card ---- */
+  .sess { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; padding: 12px; display: flex; gap: 11px; margin-bottom: 10px; }
+  .thumb { width: 68px; height: 102px; border-radius: 10px; flex-shrink: 0; background: var(--surface-2); position: relative; overflow: hidden; }
+  .thumb .srv { position: absolute; left: 0; bottom: 0; right: 0; height: 3px; }
+  .sess-body { flex: 1; min-width: 0; }
+  .sess-top { display: flex; align-items: center; gap: 6px; margin-bottom: 2px; }
+  .dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+  .srv-name-inline { font-size: 10.5px; font-weight: 700; color: var(--surface-text); letter-spacing: .02em; }
+  .who { font-size: 10.5px; font-weight: 700; color: var(--muted); letter-spacing: .02em; }
+  .title { font-size: 13.5px; font-weight: 700; line-height: 1.2; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .subt { font-size: 11px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar { height: 4px; border-radius: 4px; background: var(--chip-bg); margin: 8px 0 6px; overflow: hidden; }
+  .bar span { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+  .meta { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .tag { font-size: 9.5px; font-weight: 700; padding: 2px 6px; border-radius: 5px; letter-spacing: .02em; }
+  .t-direct { color: var(--ok); background: color-mix(in srgb, var(--ok) 15%, transparent); }
+  .t-trans { color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); }
+  .t-pause { color: var(--muted); background: var(--chip-bg); }
+  .time { font-size: 10px; color: var(--muted); margin-left: auto; font-weight: 600; }
+
+  /* ---- server health pill ---- */
+  .srv-row { display: flex; gap: 10px; }
+  .srv-card { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; }
+  .srv-name { display: flex; align-items: center; gap: 7px; font-size: 13.5px; font-weight: 700; }
+  .srv-meta { font-size: 10.5px; color: var(--muted); margin-top: 4px; }
+  .srv-stat { font-size: 11px; font-weight: 700; margin-top: 7px; display: flex; align-items: center; gap: 5px; }
+
+  /* ---- glances (existant, resserré) ---- */
+  .g-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .g-card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 12px; }
+  .g-lab { font-size: 10.5px; color: var(--muted); font-weight: 600; }
+  .g-val { font-size: 20px; font-weight: 800; margin-top: 3px; letter-spacing: -0.02em; }
+  .g-bar { height: 4px; border-radius: 4px; background: var(--chip-bg); margin-top: 8px; overflow: hidden; }
+  .g-bar span { display: block; height: 100%; border-radius: 4px; }
+
+  .empty { text-align: center; color: var(--muted); font-size: 12.5px; padding: 22px 0; border: 1px dashed var(--border); border-radius: 16px; }
+
+  /* ---- nav ---- */
+  .nav { position: absolute; left: 14px; right: 14px; bottom: 18px; height: 62px; border-radius: 22px; border: 1px solid var(--border); background: rgba(18,20,23,.85); display: flex; align-items: center; justify-content: space-around; }
+  .nav div { display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 8.5px; color: var(--muted); font-weight: 600; }
+  .nav div.on { color: var(--accent); }
+  .glyph { width: 18px; height: 18px; border-radius: 4px; background: currentColor; opacity: .85; }
+</style>
+</head>
+<body>
+
+<!-- ============ A : dashboard avec lectures ============ -->
+<div>
+<div class="phone">
+  <div class="head">
+    <h1>Serveur</h1>
+    <div class="icon-btn">⟳</div>
+  </div>
+
+  <p class="sec">Lecture en cours · 3</p>
+
+  <div class="sess">
+    <div class="thumb" style="background:linear-gradient(160deg,#3a2b4d,#1c1526)"><div class="srv" style="background:var(--jellyfin)"></div></div>
+    <div class="sess-body">
+      <div class="sess-top"><span class="dot" style="background:var(--jellyfin)"></span><span class="srv-name-inline">Jellyfin</span><span class="who">Salim · Chrome</span></div>
+      <p class="title">Dune: Part Three</p>
+      <p class="subt">2026 · 1080p → 720p</p>
+      <div class="bar"><span style="width:38%"></span></div>
+      <div class="meta">
+        <span class="tag t-trans">Transcodage</span>
+        <span class="tag t-pause">4.2 Mb/s</span>
+        <span class="time">48:12 / 2:06:30</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sess">
+    <div class="thumb" style="background:linear-gradient(160deg,#4d3a2b,#261c15)"><div class="srv" style="background:var(--plex)"></div></div>
+    <div class="sess-body">
+      <div class="sess-top"><span class="dot" style="background:var(--plex)"></span><span class="srv-name-inline">Plex</span><span class="who">Marie · Apple TV</span></div>
+      <p class="title">The Mandalorian and Grogu</p>
+      <p class="subt">S02E05 · Direct Play</p>
+      <div class="bar"><span style="width:71%"></span></div>
+      <div class="meta">
+        <span class="tag t-direct">Direct Play</span>
+        <span class="tag t-pause">18 Mb/s</span>
+        <span class="time">31:40 / 44:10</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sess" style="opacity:.62">
+    <div class="thumb" style="background:linear-gradient(160deg,#2b3a4d,#151c26)"><div class="srv" style="background:var(--jellyfin)"></div></div>
+    <div class="sess-body">
+      <div class="sess-top"><span class="dot" style="background:var(--jellyfin)"></span><span class="srv-name-inline">Jellyfin</span><span class="who">Salim · Android</span></div>
+      <p class="title">1917</p>
+      <p class="subt">2019 · En pause</p>
+      <div class="bar"><span style="width:12%;background:var(--muted)"></span></div>
+      <div class="meta">
+        <span class="tag t-pause">⏸ En pause</span>
+        <span class="time">14:02 / 1:59:00</span>
+      </div>
+    </div>
+  </div>
+
+  <p class="sec">Serveurs média</p>
+  <div class="srv-row">
+    <div class="srv-card">
+      <div class="srv-name"><span class="dot" style="background:var(--jellyfin);width:8px;height:8px"></span>Jellyfin</div>
+      <div class="srv-meta">v10.10.3</div>
+      <div class="srv-stat" style="color:var(--ok)">● En ligne · 2 flux</div>
+    </div>
+    <div class="srv-card">
+      <div class="srv-name"><span class="dot" style="background:var(--plex);width:8px;height:8px"></span>Plex</div>
+      <div class="srv-meta">v1.41.3.9314</div>
+      <div class="srv-stat" style="color:var(--ok)">● En ligne · 1 flux</div>
+    </div>
+  </div>
+
+  <p class="sec">Machine</p>
+  <div class="g-grid">
+    <div class="g-card">
+      <div class="g-lab">CPU</div>
+      <div class="g-val">72<span style="font-size:13px;color:var(--muted)">%</span></div>
+      <div class="g-bar"><span style="width:72%;background:var(--warn)"></span></div>
+    </div>
+    <div class="g-card">
+      <div class="g-lab">Mémoire</div>
+      <div class="g-val">41<span style="font-size:13px;color:var(--muted)">%</span></div>
+      <div class="g-bar"><span style="width:41%;background:var(--ok)"></span></div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div><span class="glyph"></span>Biblio</div>
+    <div><span class="glyph"></span>Recherche</div>
+    <div><span class="glyph"></span>Activité</div>
+    <div><span class="glyph"></span>Torrents</div>
+    <div class="on"><span class="glyph"></span>Serveur</div>
+    <div><span class="glyph"></span>Réglages</div>
+  </div>
+</div>
+<p class="caption">A · Dashboard — le transcodage explique le pic CPU juste dessous</p>
+</div>
+
+<!-- ============ B : personne ne regarde ============ -->
+<div>
+<div class="phone">
+  <div class="head">
+    <h1>Serveur</h1>
+    <div class="icon-btn">⟳</div>
+  </div>
+
+  <p class="sec">Lecture en cours</p>
+  <div class="empty">Personne ne regarde.</div>
+
+  <p class="sec">Serveurs média</p>
+  <div class="srv-row">
+    <div class="srv-card">
+      <div class="srv-name"><span class="dot" style="background:var(--jellyfin);width:8px;height:8px"></span>Jellyfin</div>
+      <div class="srv-meta">v10.10.3</div>
+      <div class="srv-stat" style="color:var(--ok)">● En ligne</div>
+    </div>
+    <div class="srv-card">
+      <div class="srv-name"><span class="dot" style="background:var(--plex);width:8px;height:8px"></span>Plex</div>
+      <div class="srv-meta">injoignable</div>
+      <div class="srv-stat" style="color:var(--danger)">● Hors ligne</div>
+    </div>
+  </div>
+
+  <p class="sec">Machine</p>
+  <div class="g-grid">
+    <div class="g-card">
+      <div class="g-lab">CPU</div>
+      <div class="g-val">6<span style="font-size:13px;color:var(--muted)">%</span></div>
+      <div class="g-bar"><span style="width:6%;background:var(--ok)"></span></div>
+    </div>
+    <div class="g-card">
+      <div class="g-lab">Mémoire</div>
+      <div class="g-val">38<span style="font-size:13px;color:var(--muted)">%</span></div>
+      <div class="g-bar"><span style="width:38%;background:var(--ok)"></span></div>
+    </div>
+  </div>
+
+  <div class="nav">
+    <div><span class="glyph"></span>Biblio</div>
+    <div><span class="glyph"></span>Recherche</div>
+    <div><span class="glyph"></span>Activité</div>
+    <div><span class="glyph"></span>Torrents</div>
+    <div class="on"><span class="glyph"></span>Serveur</div>
+    <div><span class="glyph"></span>Réglages</div>
+  </div>
+</div>
+<p class="caption">B · États vides + un serveur hors ligne</p>
+</div>
+
+</body>
+</html>

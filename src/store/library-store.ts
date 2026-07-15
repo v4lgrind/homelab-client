@@ -84,7 +84,7 @@ function keyedItems(items: MediaItem[], id: "radarr" | "sonarr"): MediaItem[] {
   const c = useConnectionStore();
   const key = c.apiKeys[id]?.trim();
   if (!key) return items;
-  const base = serviceBaseUrl(id, c.services[id].subdomain, c.rootDomain);
+  const base = serviceBaseUrl(id, c.hostOf(id));
   return items.map((i) =>
     i.poster?.startsWith(base) ? { ...i, poster: withApiKey(i.poster, base, key) } : i,
   );
@@ -142,7 +142,7 @@ export const useLibraryStore = defineStore("library", {
   actions: {
     _client(id: "radarr" | "sonarr"): ArrClient {
       const c = useConnectionStore();
-      return createArrClient(id, c.services[id].subdomain, c.rootDomain, c.apiKeys[id] ?? "");
+      return createArrClient(id, c.hostOf(id), c.apiKeys[id] ?? "");
     },
 
     async fetchMovies(force = false) {

@@ -50,7 +50,11 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root,
+  /* `:root` must stay qualified here. Bare, it matches <html> whatever
+     data-theme says, and — being later in the file at equal specificity — it
+     silently overrode [data-theme="dark"], making "dark" a no-op on a
+     light-themed OS. :not([data-theme]) keeps the pre-JS default only. */
+  :root:not([data-theme]),
   [data-theme="auto"] {
     --bg: #eef1f5;
     --surface: #ffffff;
@@ -72,9 +76,20 @@
   }
 }
 
+/* Vendor brand colours — identical in both themes, as a scanning aid only: the
+   server is always named in words too, since a colour means nothing to someone
+   who does not already know the brand. Never used as text: Plex's yellow fails
+   contrast on a light background. */
+:root {
+  --jellyfin: #aa5cc3;
+  --plex: #e5a00d;
+}
+
 /* Expose tokens as Tailwind v4 theme colors so `bg-surface`, `text-sub`,
    `text-accent`, `border-border`, etc. work as utilities. */
 @theme inline {
+  --color-jellyfin: var(--jellyfin);
+  --color-plex: var(--plex);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
