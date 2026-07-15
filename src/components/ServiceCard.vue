@@ -1,12 +1,6 @@
 <script setup lang="ts">
 import { computed, ref } from "vue";
 import {
-  Film,
-  Tv,
-  ArrowDownToLine,
-  Activity,
-  MonitorPlay,
-  Clapperboard,
   KeyRound,
   User,
   Link,
@@ -20,11 +14,11 @@ import {
   LoaderCircle,
   Eye,
   EyeOff,
-  type LucideIcon,
 } from "@lucide/vue";
 import { AUTH_LABELS, SERVICES } from "@/constants";
 import type { AuthType, ServiceId } from "@/types/service";
 import { useConnectionStore } from "@/store/connection-store";
+import ServiceLogo from "@/components/ServiceLogo.vue";
 
 const props = defineProps<{ id: ServiceId }>();
 
@@ -33,15 +27,6 @@ const meta = computed(() => SERVICES.find((s) => s.id === props.id)!);
 const svc = computed(() => conn.services[props.id]);
 /** The user's pick when the service offers a choice, else its only method. */
 const auth = computed<AuthType>(() => conn.authTypeOf(props.id));
-
-const ICONS: Record<ServiceId, LucideIcon> = {
-  radarr: Film,
-  sonarr: Tv,
-  qbittorrent: ArrowDownToLine,
-  glances: Activity,
-  jellyfin: MonitorPlay,
-  plex: Clapperboard,
-};
 
 const subdomain = computed({
   get: () => svc.value.subdomain,
@@ -114,9 +99,7 @@ async function disconnect() {
     v-if="!meta.available"
     class="flex items-center gap-3 rounded-[20px] bg-surface border border-border p-3.5 opacity-50"
   >
-    <div class="size-10 rounded-xl bg-chip grid place-items-center text-accent shrink-0">
-      <component :is="ICONS[id]" :size="20" />
-    </div>
+    <ServiceLogo :id="id" />
     <div>
       <p class="font-bold text-[15px] leading-tight">{{ meta.name }}</p>
       <p class="text-xs text-sub">{{ meta.desc }}</p>
@@ -129,9 +112,7 @@ async function disconnect() {
   <!-- Available module: full config card -->
   <div v-else class="flex flex-col gap-2.5 rounded-[20px] bg-surface border border-border p-3.5">
     <div class="flex items-center gap-3">
-      <div class="size-10 rounded-xl bg-chip grid place-items-center text-accent shrink-0">
-        <component :is="ICONS[id]" :size="20" />
-      </div>
+      <ServiceLogo :id="id" />
       <div>
         <p class="font-bold text-[15px] leading-tight">{{ meta.name }}</p>
         <p class="text-xs text-sub">{{ meta.desc }}</p>

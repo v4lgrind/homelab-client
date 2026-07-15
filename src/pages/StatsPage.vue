@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { RefreshCw, LoaderCircle, AlertCircle, ArrowDown, ArrowUp, HardDrive } from "@lucide/vue";
 import BottomNav from "@/components/BottomNav.vue";
 import SessionCard from "@/components/SessionCard.vue";
+import ServiceLogo from "@/components/ServiceLogo.vue";
 import { useGlancesStore } from "@/store/glances-store";
 import { useMediaServersStore } from "@/store/mediaservers-store";
 import { formatSize, formatRate } from "@/lib/format";
@@ -117,7 +118,7 @@ onUnmounted(() => {
         <div class="flex gap-2.5">
           <div v-for="h in ms.health" :key="h.server" class="flex-1 min-w-0 bg-surface border border-border rounded-2xl p-3">
             <div class="flex items-center gap-2 text-[13.5px] font-bold">
-              <span class="size-2 rounded-full shrink-0" :style="{ background: `var(--${h.server})` }" />
+              <ServiceLogo :id="h.server" :size="22" />
               {{ SERVER_LABEL[h.server] }}
             </div>
             <p class="text-[10.5px] text-muted mt-1 truncate">

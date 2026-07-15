@@ -2,6 +2,7 @@
 import { computed } from "vue";
 import { Film, Pause } from "@lucide/vue";
 import LazyImg from "@/components/LazyImg.vue";
+import ServiceLogo from "@/components/ServiceLogo.vue";
 import { formatBitrate, formatClock } from "@/lib/format";
 import type { MediaSession } from "@/types/media";
 
@@ -43,11 +44,11 @@ const bitrate = computed(() => formatBitrate(props.session.bitrateKbps));
     </div>
 
     <div class="flex-1 min-w-0">
-      <!-- The server is named, not just tinted: the dot and the thumbnail accent
-           only mean something to someone who already knows the brand colours,
-           and Plex's yellow is unreadable as text on a light background. -->
+      <!-- Logo and name both: the mark alone assumes you know it, and the name
+           alone is a wall of text to scan. Colour stays the scanning aid it is
+           good at being — Plex's yellow is unreadable as text on a light card. -->
       <div class="flex items-center gap-1.5 mb-0.5 min-w-0">
-        <span class="size-1.5 rounded-full shrink-0" :style="{ background: serverColor }" />
+        <ServiceLogo :id="session.server" :size="14" />
         <span class="text-[10.5px] font-bold text-surface-text shrink-0">{{ serverName }}</span>
         <span class="text-[10.5px] font-bold text-muted truncate">
           {{ session.user }} · {{ session.device }}
