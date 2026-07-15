@@ -10,7 +10,7 @@ defineEmits<{ (e: "select", item: MediaItem): void }>();
 <template>
   <button
     type="button"
-    class="text-left active:scale-[0.97] transition"
+    class="poster-card text-left active:scale-[0.97] transition"
     @click="$emit('select', item)"
   >
     <div class="relative rounded-[14px] overflow-hidden aspect-[2/3] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.6)]">
@@ -20,10 +20,11 @@ defineEmits<{ (e: "select", item: MediaItem): void }>();
         </template>
       </LazyImg>
 
-      <!-- status badge -->
+      <!-- status badge — opaque on purpose: a backdrop-filter here would add one
+           compositing layer per card across the whole grid. -->
       <span
-        class="absolute top-1.5 right-1.5 size-5 rounded-[7px] grid place-items-center backdrop-blur-sm"
-        :class="item.complete ? 'bg-ok/90 text-black' : 'bg-danger/90 text-white'"
+        class="absolute top-1.5 right-1.5 size-5 rounded-[7px] grid place-items-center"
+        :class="item.complete ? 'bg-ok text-black' : 'bg-danger text-white'"
       >
         <component :is="item.complete ? Check : AlertCircle" :size="12" :stroke-width="item.complete ? 3 : 2.4" />
       </span>
@@ -40,3 +41,14 @@ defineEmits<{ (e: "select", item: MediaItem): void }>();
     </div>
   </button>
 </template>
+
+<style scoped>
+/* The library grid renders every item (no virtualisation), so off-screen cards
+   still cost layout + paint on the main thread. content-visibility lets the
+   engine skip that work until a card approaches the viewport; the `auto`
+   intrinsic size keeps the last measured height so the scrollbar stays stable. */
+.poster-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 165px;
+}
+</style>

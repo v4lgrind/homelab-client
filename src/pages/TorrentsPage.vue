@@ -186,7 +186,7 @@ onUnmounted(() => timer && clearInterval(timer));
           v-for="t in qbit.filtered"
           :key="t.hash"
           type="button"
-          class="text-left rounded-[18px] bg-surface border border-border p-3.5 active:scale-[0.99] transition"
+          class="torrent-card text-left rounded-[18px] bg-surface border border-border p-3.5 active:scale-[0.99] transition"
           @click="selected = t"
         >
           <span
@@ -274,3 +274,12 @@ onUnmounted(() => timer && clearInterval(timer));
     </BottomSheet>
   </div>
 </template>
+
+<style scoped>
+/* Same reasoning as PosterCard: the whole torrent list is rendered at once and
+   re-rendered every 4s by the auto-refresh, so skip off-screen work. */
+.torrent-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 118px;
+}
+</style>
