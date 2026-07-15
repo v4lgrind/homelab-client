@@ -377,7 +377,6 @@ async function disconnect() {
       </button>
     </div>
 
-    <p v-if="pairing?.error" class="text-xs text-danger px-1">{{ pairing.error }}</p>
 
     <p v-if="svc.status === 'error' && svc.error" class="text-xs text-danger px-1">
       {{ svc.error }}

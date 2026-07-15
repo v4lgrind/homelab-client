@@ -17,7 +17,8 @@ export interface PairingState {
   active: boolean;
   /** The code the user must approve in Jellyfin. */
   code?: string;
-  error?: string;
+  // No error field: failures go to the service's own status/error, which the
+  // card already renders. Two channels for one message showed it twice.
 }
 
 /** Give up rather than poll a stale code forever. */
@@ -206,10 +207,15 @@ export const useConnectionStore = defineStore("connection", {
     async startQuickConnect(): Promise<boolean> {
       const svc = this.services.jellyfin;
       const host = this.hostOf("jellyfin");
-      if (!host) {
-        this.pairing.jellyfin = { active: false, error: "Domaine du service requis" };
+
+      const fail = (error: string) => {
+        this.pairing.jellyfin = { active: false };
+        svc.status = "error";
+        svc.error = error;
         return false;
-      }
+      };
+
+      if (!host) return fail("Domaine du service requis");
 
       this.pairing.jellyfin = { active: true };
       svc.status = "testing";
@@ -218,10 +224,7 @@ export const useConnectionStore = defineStore("connection", {
       const client = createJellyfinClient(host);
       try {
         if (!(await client.isQuickConnectEnabled())) {
-          this.pairing.jellyfin = { active: false, error: "Quick Connect désactivé sur le serveur" };
-          svc.status = "error";
-          svc.error = "Quick Connect désactivé sur le serveur";
-          return false;
+          return fail("Quick Connect désactivé sur le serveur");
         }
 
         const state = await client.initiateQuickConnect();
@@ -242,15 +245,9 @@ export const useConnectionStore = defineStore("connection", {
           this.pairing.jellyfin = { active: false };
           return await this.testService("jellyfin");
         }
-        this.pairing.jellyfin = { active: false, error: "Code expiré — réessaie" };
-        svc.status = "idle";
-        return false;
+        return fail("Code expiré — réessaie");
       } catch (e) {
-        const msg = e instanceof HttpError ? e.message : "Échec du Quick Connect";
-        this.pairing.jellyfin = { active: false, error: msg };
-        svc.status = "error";
-        svc.error = msg;
-        return false;
+        return fail(e instanceof HttpError ? e.message : "Échec du Quick Connect");
       }
     },
 
@@ -293,6 +290,14 @@ export const useConnectionStore = defineStore("connection", {
      */
     async startPlexAuth(): Promise<boolean> {
       const svc = this.services.plex;
+
+      const fail = (error: string) => {
+        this.pairing.plex = { active: false };
+        svc.status = "error";
+        svc.error = error;
+        return false;
+      };
+
       this.pairing.plex = { active: true };
       svc.status = "testing";
       svc.error = undefined;
@@ -314,11 +319,7 @@ export const useConnectionStore = defineStore("connection", {
         }
         await Browser.close().catch(() => {});
 
-        if (!token) {
-          this.pairing.plex = { active: false, error: "Connexion expirée — réessaie" };
-          svc.status = "idle";
-          return false;
-        }
+        if (!token) return fail("Connexion expirée — réessaie");
 
         this.apiKeys.plex = token;
         await this.persistApiKey("plex");
@@ -326,11 +327,7 @@ export const useConnectionStore = defineStore("connection", {
         return await this.discoverPlex();
       } catch (e) {
         await Browser.close().catch(() => {});
-        const msg = e instanceof HttpError ? e.message : "Échec de la connexion Plex";
-        this.pairing.plex = { active: false, error: msg };
-        svc.status = "error";
-        svc.error = msg;
-        return false;
+        return fail(e instanceof HttpError ? e.message : "Échec de la connexion Plex");
       }
     },
 
