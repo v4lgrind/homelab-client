@@ -1,164 +1,196 @@
 # Homelab Client
 
-Application Android cliente de mon homelab : piloter les services principaux et
-visualiser les stats du serveur, dans une seule app au design soigné.
+**A polished Android client for your homelab.** Browse your media library, drive
+your downloads and watch your server — from one app, on your phone, over your
+own domain.
 
-📦 **Dernière version** : [Releases](../../releases/latest) · builds de développement continus : prerelease [`nightly`](../../releases/tag/nightly).
+No cloud account. No third party. The app talks straight to the services you
+already run.
 
-## Périmètre
+📦 [**Download the latest APK**](../../releases/latest) · rolling dev build: [`nightly`](../../releases/tag/nightly)
 
-| Module | Rôle | État |
-| --- | --- | --- |
-| Radarr | Films : bibliothèque, recherche/ajout, file d'attente, calendrier | ✅ livré |
-| Sonarr | Séries : bibliothèque, recherche/ajout, file d'attente, calendrier | ✅ livré |
-| qBittorrent | Torrents : liste, filtres, ajout, pause/reprise/catégorie/suppression (via le frontend « qui ») | ✅ livré |
-| Glances | Stats serveur (CPU, RAM, disques, réseau) | ✅ livré |
-| Hub notifications | Réception de webhooks + notifications locales | ⏳ à venir |
+---
 
-Tous les services sont derrière un reverse proxy protégé par **Authelia**, mais
-l'app n'a besoin que des **clés API** (ou de l'URL de proxy « qui » pour
-qBittorrent) : Authelia est bypassé sur `/api` côté serveur (voir ci-dessous).
+## What it does
+
+### 📚 Your library, at a glance
+
+A poster grid of everything Radarr and Sonarr know about. Switch between movies
+and series, filter down to what's **missing** or **monitored**, and sort by
+title, date added, year or size. Built to stay smooth with a library of
+thousands of titles.
+
+### 🎬 Every title, in detail
+
+Open any title for its artwork, synopsis and genres. From there you can toggle
+**monitoring**, kick off a **search**, or delete it — with or without its files.
+
+### 🔎 Pick your own release
+
+Not happy with what was grabbed? Run an **interactive search**: the app queries
+your indexers and lays out the releases so you can choose exactly which one to
+grab.
+
+### ⏳ Activity
+
+Watch the download queue live — progress, speed, ETA — and scan what landed
+recently.
+
+### 📅 Calendar
+
+See what's coming, in an agenda list or a month view, so you know what lands
+this week.
+
+### 🧲 Torrents
+
+Full qBittorrent control through **[qui](https://getqui.com)'s Client Proxy** —
+no credentials shared with the app. List and filter your torrents, add magnets,
+pause, resume, force-resume, re-categorise or delete. Transfer speeds update
+live.
+
+### 📊 Server stats
+
+A Glances dashboard for the box itself: CPU, memory, load, disks and network.
+
+---
+
+## Design
+
+The interface follows a house design language — **"Direction OLED"**: true-black
+surfaces, a single blue accent, the Outfit typeface and a floating navigation
+bar. Light, dark and auto themes all ship. Every screen is designed as a static
+mockup before it is built, so the app is drawn on purpose rather than assembled
+by default.
+
+---
+
+## How it connects
+
+Every service sits behind a reverse proxy protected by **Authelia**. Rather than
+teaching the app to log into Authelia, a `bypass` rule is sealed onto `^/api`:
+the endpoints stay protected by each service's **own API key**, and the app only
+ever holds those keys — no master password, no session cookie, a much smaller
+blast radius. See [`docs/authelia-bypass.md`](docs/authelia-bypass.md).
+
+| Service | How the app authenticates |
+| --- | --- |
+| Radarr / Sonarr | API key (`X-Api-Key`) on `/api/v3` |
+| Glances | none — the API is reachable on its own subdomain |
+| qBittorrent | a **qui Client Proxy URL** that embeds its own key; qui keeps the qBittorrent session |
+
+Keys are stored with `@capacitor/preferences` and never leave the device — they
+are kept out of persisted app state entirely.
+
+---
+
+## Built to feel fast
+
+Performance is treated as a feature, and measured on a real device rather than
+guessed:
+
+- **Instant launch.** The library renders from cache immediately, then
+  revalidates in the background. Cold start shows a full grid with no spinner.
+- **Covers at the right size.** Artwork is served by your own Radarr/Sonarr at
+  display resolution instead of full-resolution originals — ~28× less data per
+  poster, and nothing about your library leaks to a third-party CDN.
+- **Smooth scrolling.** Off-screen cards skip layout and paint, keeping frame
+  times low on lists of thousands of items.
+
+---
 
 ## Stack
 
-- **Frontend** : Vue 3 + TypeScript + Vite
-- **Mobile** : Capacitor v8 (Android uniquement)
-- **State** : Pinia + `pinia-plugin-persistedstate`
-- **UI** : Reka UI (headless) + Tailwind CSS v4 + icônes Lucide (`@lucide/vue`)
-- **HTTP** : `CapacitorHttp` (couche réseau native → gère les cookies de session
-  cross-sous-domaine et contourne CORS)
-- **Design** : système de tokens « Direction OLED » (thèmes auto/clair/sombre via
-  `[data-theme]`, police Outfit, nav flottante)
+- **Frontend** — Vue 3, TypeScript, Vite
+- **Mobile** — Capacitor v8 (Android only)
+- **State** — Pinia + `pinia-plugin-persistedstate`
+- **UI** — Reka UI (headless), Tailwind CSS v4, Lucide icons
+- **Networking** — `CapacitorHttp`, the native network layer (no CORS, native cookie jar)
 
-## Authentification (Option B — bypass /api)
+---
 
-L'app atteint les APIs **sans** login Authelia : une règle `bypass` scellée sur
-`^/api/` est ajoutée côté serveur (voir [`docs/authelia-bypass.md`](docs/authelia-bypass.md)),
-et les endpoints restent protégés par la **clé API** du service (`X-Api-Key`).
+## Build it yourself
 
-Avantages : app plus simple, aucun mot de passe Authelia stocké, rayon de dégâts
-réduit. Les clés API (et l'URL de proxy « qui ») sont stockées dans
-`@capacitor/preferences` (chiffré) ; les URLs des services via le store Pinia persisté.
+### With Docker — nothing else required
 
-Par service :
+A reproducible image bundles JDK 21, Node 22 and the Android SDK:
 
-| Service | Auth | Détail |
-| --- | --- | --- |
-| Radarr / Sonarr | clé API | header `X-Api-Key` sur `/api/v3`, images via `/api/v3/mediacover/…?apikey=` |
-| Glances | aucune | API publique sur le sous-domaine (bypass `^/api`) |
-| qBittorrent | URL de proxy « qui » | via le **Client Proxy** de [qui](https://getqui.com) : pas de login, l'URL contient la clé et qui maintient la session qBittorrent. Bypass `^/proxy` sur l'hôte qui |
+```bash
+./docker/build-apk.sh          # debug APK
+./docker/build-apk.sh release  # release APK
+```
 
-Détails et règles Authelia par service : [`docs/authelia-bypass.md`](docs/authelia-bypass.md).
+The APK lands in `android/app/build/outputs/apk/debug/`.
 
-## Développement
+### Locally, with JDK 21 + Android SDK
 
 ```bash
 npm install
+npm run android:build
+```
+
+### Develop
+
+```bash
 npm run dev          # http://localhost:5173
-npm run typecheck    # vue-tsc --noEmit
+npm run typecheck
 ```
 
-Pour tester la connexion réelle dans le navigateur (contournement CORS), copier
-`.env.example` en `.env` et renseigner les URLs de tes services : un proxy Vite
-les rend same-origin en dev. Sur device, l'app utilise `CapacitorHttp` en direct.
+Copy `.env.example` to `.env` and fill in your service URLs: a Vite proxy makes
+them same-origin in the browser so you can develop against the real thing. On
+device, `CapacitorHttp` talks to them directly.
 
-> Pour qBittorrent, `DEV_QBITTORRENT_URL` est l'**URL complète du proxy qui**
-> (elle embarque la clé). Le proxy Vite retire les en-têtes `Origin`/`Referer`
-> pour éviter le rejet CSRF de la WebUI qBittorrent — sans effet sur device.
+Screen mockups live in [`design-mockups/`](design-mockups/) and are validated
+before the matching Vue view is written.
 
-Le workflow design passe par des maquettes HTML statiques dans
-[`design-mockups/`](design-mockups/), validées avant de coder la vue Vue.
+### Signing
 
-## Android
+Debug builds are signed with a **fixed, committed keystore**
+(`android/app/debug.keystore` — a debug key is not a secret). Every build, local
+or CI, therefore shares one signature: a new APK installs straight over the
+previous one, no uninstall dance.
 
-### Build via Docker (recommandé — aucun SDK local requis)
+---
 
-Une image Docker reproductible embarque JDK 21 + Node 22 + Android SDK
-(platform/build-tools 36). Seul **Docker** est requis sur la machine :
+## Releases
 
-```bash
-./docker/build-apk.sh          # APK debug
-./docker/build-apk.sh release  # APK release
-```
-
-Le 1er run construit l'image (télécharge le SDK, quelques minutes) ; les runs
-suivants réutilisent le cache Gradle et les `node_modules` du conteneur (le
-`node_modules` de l'hôte n'est pas touché). APK de sortie :
-`android/app/build/outputs/apk/debug/`.
-
-### Build local (si tu as JDK 21 + Android SDK installés)
-
-```bash
-npm run cap:sync       # synchronise le web vers android/
-npm run android:build  # build APK debug
-```
-
-### Signature (keystore debug fixe)
-
-Le build debug est signé par un keystore **fixe et versionné**
-(`android/app/debug.keystore`, identifiants debug standard `android` /
-`androiddebugkey`). Ce n'est **pas** un secret : un keystore debug n'ouvre aucun
-accès. L'intérêt est que **tous** les builds (local + CI) partagent la même
-signature, donc réinstaller un nouvel APK par-dessus l'ancien ne déclenche plus
-l'erreur *« signatures do not match »* — pas besoin de désinstaller d'abord.
-
-> ⚠️ **Transition unique** : si tu avais installé un `nightly` d'avant ce
-> changement (signé par une clé éphémère du CI), désinstalle l'app **une seule
-> fois** pour passer à la signature fixe. Ensuite, toutes les réinstallations
-> fonctionnent sans désinstaller.
-
-### Icône & splash
-
-L'identité visuelle (icône « Hub » + splash clair/sombre) est générée depuis les
-sources PNG de [`assets/`](assets/) avec `@capacitor/assets` :
-
-```bash
-npx @capacitor/assets generate --android \
-  --splashBackgroundColor "#eef1f5" --splashBackgroundColorDark "#0a0c0f"
-```
-
-## CI/CD
-
-Trois workflows GitHub Actions (`.github/workflows/`) :
-
-| Workflow | Déclencheur | Rôle |
+| Workflow | Trigger | What it does |
 | --- | --- | --- |
-| `pr-check.yml` | chaque PR vers `main` | Vérifie que tout build (types + web + APK), **sans** conserver l'APK. Garde-fou de merge. |
-| `android-build.yml` | push sur `main` | Build l'APK debug et publie la prerelease roulante `nightly`. |
-| `release.yml` | manuel (`workflow_dispatch`) | Release versionnée : voir ci-dessous. |
-
-### Publier une release
-
-Depuis l'onglet **Actions → Release → Run workflow**, ou en CLI :
+| `pr-check.yml` | every PR | Type-checks, builds the web app and the APK. Nothing is kept — it is a merge gate. |
+| `android-build.yml` | push to `main` | Builds and publishes the rolling `nightly` prerelease. |
+| `release.yml` | manual | Give it a version — it tags, builds and publishes the release. |
 
 ```bash
 gh workflow run release.yml -f version=1.1.0
 ```
 
-Le workflow injecte la version dans `build.gradle` (`versionName` + un
-`versionCode` dérivé du semver : `major*10000+minor*100+patch`, monotone),
-build l'APK debug-signé (même keystore fixe → s'installe par-dessus l'existant),
-tague le commit `v<version>` et publie une release GitHub avec l'APK attaché
-(`homelab-v<version>.apk`). Il refuse de tourner si le tag existe déjà.
+The version drives `versionName` and a `versionCode` derived from semver, so
+upgrades stay monotonic.
 
-## Structure
+---
+
+## Roadmap
+
+A **notifications hub** is next: a self-hosted webhook receiver that collects
+events from across the homelab — grabs, imports, uptime alerts — and surfaces
+them in the app.
+
+---
+
+## Layout
 
 ```
 src/
-├── assets/main.css     # tokens design « Direction OLED » + Tailwind
-├── components/          # composants réutilisables (BrandHeader, BottomNav, BottomSheet, ServiceCard…)
-├── composables/         # useTheme
-├── constants.ts         # métadonnées des services (auth, sous-domaines…)
-├── lib/                 # helpers (cn(), format…)
-├── pages/               # écrans routés (Library, Detail, Search, Activity, Calendar, Torrents, Stats, Settings, Onboarding)
-├── router/              # Vue Router + garde d'onboarding
-├── services/            # clients API : http (CapacitorHttp), arr (+arr-factory), glances, qbittorrent
-├── store/               # stores Pinia : connection, library, activity, calendar, search, glances, qbittorrent
-└── types/               # types partagés
+├── assets/main.css   # design tokens + Tailwind
+├── components/       # BrandHeader, BottomNav, PosterCard, ServiceCard…
+├── composables/      # useTheme
+├── pages/            # routed screens
+├── services/         # API clients: http, arr, glances, qbittorrent
+├── store/            # Pinia stores
+└── types/
 
-android/                 # projet Capacitor Android (keystore debug fixe, assets générés)
-assets/                  # sources icône/splash (@capacitor/assets)
-design-mockups/          # maquettes HTML validées avant implémentation
-docker/                  # image + script de build APK reproductible
-docs/                    # docs serveur (bypass Authelia…)
+android/              # Capacitor Android project
+assets/               # icon & splash sources (@capacitor/assets)
+design-mockups/       # HTML mockups, validated before implementation
+docker/               # reproducible APK build image
+docs/                 # server-side docs (Authelia bypass…)
 ```
