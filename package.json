@@ -8,7 +8,7 @@
     "build": "vue-tsc -b && vite build",
     "build:skip-types": "vite build",
     "preview": "vite preview",
-    "typecheck": "vue-tsc --noEmit",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.app.json",
     "test": "vitest run",
     "test:watch": "vitest",
     "cap:sync": "npx cap sync",
