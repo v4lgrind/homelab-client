@@ -7,7 +7,10 @@ import type { MediaSession } from "@/types/media";
 
 const props = defineProps<{ session: MediaSession }>();
 
+const SERVER_NAMES = { jellyfin: "Jellyfin", plex: "Plex" } as const;
+
 const serverColor = computed(() => `var(--${props.session.server})`);
+const serverName = computed(() => SERVER_NAMES[props.session.server]);
 
 const progress = computed(() => {
   const { positionMs, durationMs } = props.session;
@@ -40,9 +43,13 @@ const bitrate = computed(() => formatBitrate(props.session.bitrateKbps));
     </div>
 
     <div class="flex-1 min-w-0">
-      <div class="flex items-center gap-1.5 mb-0.5">
+      <!-- The server is named, not just tinted: the dot and the thumbnail accent
+           only mean something to someone who already knows the brand colours,
+           and Plex's yellow is unreadable as text on a light background. -->
+      <div class="flex items-center gap-1.5 mb-0.5 min-w-0">
         <span class="size-1.5 rounded-full shrink-0" :style="{ background: serverColor }" />
-        <span class="text-[10.5px] font-bold text-sub truncate">
+        <span class="text-[10.5px] font-bold text-surface-text shrink-0">{{ serverName }}</span>
+        <span class="text-[10.5px] font-bold text-muted truncate">
           {{ session.user }} · {{ session.device }}
         </span>
       </div>

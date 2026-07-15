@@ -76,8 +76,10 @@
   }
 }
 
-/* Vendor brand colours — identical in both themes, so a session is attributable
-   to its server at a glance. Only ever used as dots/underlines, never as text. */
+/* Vendor brand colours — identical in both themes, as a scanning aid only: the
+   server is always named in words too, since a colour means nothing to someone
+   who does not already know the brand. Never used as text: Plex's yellow fails
+   contrast on a light background. */
 :root {
   --jellyfin: #aa5cc3;
   --plex: #e5a00d;
