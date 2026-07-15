@@ -50,7 +50,11 @@
 }
 
 @media (prefers-color-scheme: light) {
-  :root,
+  /* `:root` must stay qualified here. Bare, it matches <html> whatever
+     data-theme says, and — being later in the file at equal specificity — it
+     silently overrode [data-theme="dark"], making "dark" a no-op on a
+     light-themed OS. :not([data-theme]) keeps the pre-JS default only. */
+  :root:not([data-theme]),
   [data-theme="auto"] {
     --bg: #eef1f5;
     --surface: #ffffff;
