@@ -1,10 +1,14 @@
 import { defineStore } from "pinia";
-import { createArrClient, type ArrClient } from "@/services/arr";
+import { createArrClient, withApiKey, type ArrClient } from "@/services/arr";
 import { useConnectionStore } from "@/store/connection-store";
-import { HttpError } from "@/services/http";
+import { HttpError, serviceBaseUrl } from "@/services/http";
 import type { MediaDetail, MediaItem, MediaKind, Movie, Series } from "@/types/arr";
 
 type LoadState = "idle" | "loading" | "ready" | "error";
+
+/** How long a cached list is served without hitting the server. The refresh
+ *  button always forces a revalidation regardless. */
+const TTL_MS = 30 * 60 * 1000;
 
 export type LibTab = "movie" | "series";
 export type LibFilter = "all" | "missing" | "monitored";
@@ -12,10 +16,17 @@ export type SortKey = "title" | "added" | "year" | "size";
 export type SortDir = "asc" | "desc";
 
 interface State {
+  /** Cached lists. Poster URLs are stored key-less — see withApiKey(). */
   movies: MediaItem[];
   series: MediaItem[];
+  /** epoch ms of the last successful fetch, used for the TTL. */
+  moviesFetchedAt?: number;
+  seriesFetchedAt?: number;
   moviesState: LoadState;
   seriesState: LoadState;
+  /** true while refreshing on top of an already-displayed cached list. */
+  moviesRevalidating: boolean;
+  seriesRevalidating: boolean;
   moviesError?: string;
   seriesError?: string;
 
@@ -67,12 +78,30 @@ function seriesToItem(s: Series, poster?: string): MediaItem {
   };
 }
 
+/** Re-attach the api key to cached cover URLs (they are persisted key-less).
+ *  Items whose poster comes from a CDN are returned untouched. */
+function keyedItems(items: MediaItem[], id: "radarr" | "sonarr"): MediaItem[] {
+  const c = useConnectionStore();
+  const key = c.apiKeys[id]?.trim();
+  if (!key) return items;
+  const base = serviceBaseUrl(id, c.services[id].subdomain, c.rootDomain);
+  return items.map((i) =>
+    i.poster?.startsWith(base) ? { ...i, poster: withApiKey(i.poster, base, key) } : i,
+  );
+}
+
 export const useLibraryStore = defineStore("library", {
   state: (): State => ({
     movies: [],
     series: [],
+    // Declared up front: a property that is absent from this factory never makes
+    // it into $state, so it would silently never be persisted.
+    moviesFetchedAt: undefined,
+    seriesFetchedAt: undefined,
     moviesState: "idle",
     seriesState: "idle",
+    moviesRevalidating: false,
+    seriesRevalidating: false,
     tab: "movie",
     filter: "all",
     sortKey: "title",
@@ -84,9 +113,30 @@ export const useLibraryStore = defineStore("library", {
     searchTriggered: false,
   }),
 
-  // Only the view preferences are persisted; lists/detail refetch fresh.
+  // View preferences + the cached lists. The lists are shown instantly on launch
+  // and revalidated in the background (stale-while-revalidate). Detail always
+  // refetches fresh — it is one request and it drives write actions.
+  // Poster URLs here are key-less, so no secret ever reaches localStorage.
   persist: {
-    pick: ["tab", "filter", "sortKey", "sortDir"],
+    pick: ["tab", "filter", "sortKey", "sortDir", "movies", "series", "moviesFetchedAt", "seriesFetchedAt"],
+  },
+
+  getters: {
+    /** Lists ready to render: the api key is re-attached to our own cover URLs. */
+    movieItems(state): MediaItem[] {
+      return keyedItems(state.movies, "radarr");
+    },
+    seriesItems(state): MediaItem[] {
+      return keyedItems(state.series, "sonarr");
+    },
+    /** Rough size of the persisted cache, for the Settings screen. */
+    cacheBytes(): number {
+      try {
+        return localStorage.getItem("library")?.length ?? 0;
+      } catch {
+        return 0;
+      }
+    },
   },
 
   actions: {
@@ -96,39 +146,76 @@ export const useLibraryStore = defineStore("library", {
     },
 
     async fetchMovies(force = false) {
-      if (this.moviesState === "loading") return;
-      if (this.moviesState === "ready" && !force) return;
-      this.moviesState = "loading";
+      if (this.moviesState === "loading" || this.moviesRevalidating) return;
+      const cached = this.movies.length > 0;
+      const fresh = !!this.moviesFetchedAt && Date.now() - this.moviesFetchedAt < TTL_MS;
+      // Serve the cache instantly, then decide whether the server is worth asking.
+      if (cached) {
+        this.moviesState = "ready";
+        if (fresh && !force) return;
+        this.moviesRevalidating = true;
+      } else {
+        this.moviesState = "loading";
+      }
       this.moviesError = undefined;
       try {
         const client = this._client("radarr");
         const movies = await client.getMovies();
         this.movies = movies
-          .map((m) => movieToItem(m, client.posterUrl(m.images, m.id)))
+          .map((m) => movieToItem(m, client.posterPath(m.images, m.id)))
           .sort((a, b) => a.title.localeCompare(b.title));
+        this.moviesFetchedAt = Date.now();
         this.moviesState = "ready";
       } catch (e) {
-        this.moviesState = "error";
-        this.moviesError = e instanceof HttpError ? e.message : "Erreur de chargement";
+        // Keep showing the cache if we have one — a failed refresh is not a
+        // reason to blank the library.
+        if (!cached) {
+          this.moviesState = "error";
+          this.moviesError = e instanceof HttpError ? e.message : "Erreur de chargement";
+        }
+      } finally {
+        this.moviesRevalidating = false;
       }
     },
 
     async fetchSeries(force = false) {
-      if (this.seriesState === "loading") return;
-      if (this.seriesState === "ready" && !force) return;
-      this.seriesState = "loading";
+      if (this.seriesState === "loading" || this.seriesRevalidating) return;
+      const cached = this.series.length > 0;
+      const fresh = !!this.seriesFetchedAt && Date.now() - this.seriesFetchedAt < TTL_MS;
+      if (cached) {
+        this.seriesState = "ready";
+        if (fresh && !force) return;
+        this.seriesRevalidating = true;
+      } else {
+        this.seriesState = "loading";
+      }
       this.seriesError = undefined;
       try {
         const client = this._client("sonarr");
         const series = await client.getSeries();
         this.series = series
-          .map((s) => seriesToItem(s, client.posterUrl(s.images, s.id)))
+          .map((s) => seriesToItem(s, client.posterPath(s.images, s.id)))
           .sort((a, b) => a.title.localeCompare(b.title));
+        this.seriesFetchedAt = Date.now();
         this.seriesState = "ready";
       } catch (e) {
-        this.seriesState = "error";
-        this.seriesError = e instanceof HttpError ? e.message : "Erreur de chargement";
+        if (!cached) {
+          this.seriesState = "error";
+          this.seriesError = e instanceof HttpError ? e.message : "Erreur de chargement";
+        }
+      } finally {
+        this.seriesRevalidating = false;
       }
+    },
+
+    /** Drop the cached lists (Settings → vider le cache). */
+    clearCache() {
+      this.movies = [];
+      this.series = [];
+      this.moviesFetchedAt = undefined;
+      this.seriesFetchedAt = undefined;
+      this.moviesState = "idle";
+      this.seriesState = "idle";
     },
 
     async fetchDetail(kind: MediaKind, id: number, force = false) {

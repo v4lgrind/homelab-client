@@ -46,9 +46,12 @@ function cmp(a: MediaItem, b: MediaItem): number {
   }
 }
 
-const items = computed(() => (lib.tab === "movie" ? lib.movies : lib.series));
+// movieItems/seriesItems re-attach the api key to cached (key-less) cover URLs.
+const items = computed(() => (lib.tab === "movie" ? lib.movieItems : lib.seriesItems));
 const state = computed(() => (lib.tab === "movie" ? lib.moviesState : lib.seriesState));
 const error = computed(() => (lib.tab === "movie" ? lib.moviesError : lib.seriesError));
+/** Refreshing on top of a cached list — spin the button, keep the list visible. */
+const revalidating = computed(() => (lib.tab === "movie" ? lib.moviesRevalidating : lib.seriesRevalidating));
 
 const filtered = computed<MediaItem[]>(() => {
   let list = items.value;
@@ -83,8 +86,8 @@ function select(item: MediaItem) {
         <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition" aria-label="Calendrier" @click="router.push('/calendar')">
           <CalendarDays :size="19" />
         </button>
-        <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition disabled:opacity-50" :disabled="state === 'loading'" aria-label="Rafraîchir" @click="load(true)">
-          <RefreshCw :size="18" :class="{ 'animate-spin': state === 'loading' }" />
+        <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition disabled:opacity-50" :disabled="state === 'loading' || revalidating" aria-label="Rafraîchir" @click="load(true)">
+          <RefreshCw :size="18" :class="{ 'animate-spin': state === 'loading' || revalidating }" />
         </button>
       </div>
     </header>

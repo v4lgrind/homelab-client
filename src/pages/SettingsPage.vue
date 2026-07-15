@@ -12,11 +12,25 @@ import {
 import ServiceCard from "@/components/ServiceCard.vue";
 import { SERVICES } from "@/constants";
 import { useConnectionStore } from "@/store/connection-store";
+import { useLibraryStore } from "@/store/library-store";
 import { useTheme } from "@/composables/useTheme";
+import { formatSize } from "@/lib/format";
 
 const conn = useConnectionStore();
+const lib = useLibraryStore();
 const router = useRouter();
 const { theme, cycleTheme } = useTheme();
+
+const cacheLabel = computed(() => {
+  const bytes = lib.cacheBytes;
+  if (!bytes) return "Vide — sera rempli au prochain chargement";
+  const count = lib.movies.length + lib.series.length;
+  return `${count} titres · ${formatSize(bytes)}`;
+});
+
+function purge() {
+  lib.clearCache();
+}
 
 const rootDomain = computed({
   get: () => conn.rootDomain,
@@ -90,6 +104,32 @@ async function reset() {
     <div class="flex flex-col gap-3">
       <ServiceCard v-for="s in SERVICES" :key="s.id" :id="s.id" />
     </div>
+
+    <!-- Cache -->
+    <p class="text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1 mt-6">Cache</p>
+    <section class="rounded-[22px] bg-surface border border-border p-4">
+      <div class="flex items-center justify-between gap-3">
+        <div>
+          <p class="text-[15px] font-semibold leading-tight">Bibliothèque en cache</p>
+          <p class="text-xs text-sub mt-0.5">
+            {{ cacheLabel }}
+          </p>
+        </div>
+        <button
+          type="button"
+          class="shrink-0 px-3.5 py-2 rounded-xl bg-chip border border-border text-[12.5px] font-semibold text-surface-text flex items-center gap-1.5 active:scale-95 transition disabled:opacity-50"
+          :disabled="!lib.cacheBytes"
+          @click="purge"
+        >
+          <Trash2 :size="14" />
+          Vider
+        </button>
+      </div>
+      <p class="text-[11px] text-muted mt-2.5 leading-snug">
+        Les listes sont affichées immédiatement puis rafraîchies en arrière-plan.
+        Les jaquettes, elles, sont gérées par le cache du système.
+      </p>
+    </section>
 
     <!-- Reset -->
     <button
