@@ -38,20 +38,29 @@ export function createArrClient(
     );
   }
 
-  /** Image URL for a given cover type — prefer the public CDN (no auth), fall
-   *  back to the local /api/mediacover path (bypassed by Authelia, api-key auth). */
+  /** Image URL for a given cover type.
+   *
+   *  Serve from our own Radarr/Sonarr first: the images are already on disk
+   *  there, it keeps the library private (TMDB would otherwise see the device IP
+   *  and every poster browsed), and it avoids TMDB rate-limiting on fast scrolls.
+   *  Both expose pre-resized variants, so ask for the one matching the display
+   *  size rather than the full-resolution original.
+   *
+   *  Falls back to the public CDN when an item has no local cover yet (freshly
+   *  added, cover not downloaded). /api is Authelia-bypassed; the key authenticates. */
   function imageUrl(
     images: ArrImage[] | undefined,
     mediaId: number,
     coverType: "poster" | "fanart",
   ): string | undefined {
     const img = images?.find((i) => i.coverType === coverType);
-    // Posters: grid cards ~330px, detail poster ~290px. Backdrop: ~1080px, and it
-    // sits under a gradient, so w780 is plenty.
-    if (img?.remoteUrl) return sizedRemote(img.remoteUrl, coverType === "poster" ? "w342" : "w780");
     if (img?.url) {
-      return `${base}/api/v3/mediacover/${mediaId}/${coverType}.jpg?apikey=${encodeURIComponent(apiKey)}`;
+      // Posters render ~330px wide (grid) / ~290px (detail) -> poster-500.
+      // The backdrop is ~1080px but sits under a gradient -> fanart-720.
+      const variant = coverType === "poster" ? "poster-500" : "fanart-720";
+      return `${base}/api/v3/mediacover/${mediaId}/${variant}.jpg?apikey=${encodeURIComponent(apiKey)}`;
     }
+    if (img?.remoteUrl) return sizedRemote(img.remoteUrl, coverType === "poster" ? "w342" : "w780");
     return undefined;
   }
 
