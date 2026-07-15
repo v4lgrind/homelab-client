@@ -7,6 +7,12 @@ export const STORAGE_KEYS = {
   theme: "homelab_theme",
   /** API keys are stored per service: `homelab_apikey_<serviceId>`. */
   apiKeyPrefix: "homelab_apikey_",
+  /**
+   * Plex needs two secrets: the account token (under apiKeyPrefix, used to talk
+   * to plex.tv and re-discover servers) and this server-scoped token, which is
+   * what the media server itself accepts.
+   */
+  plexServerToken: "homelab_plex_server_token",
 } as const;
 
 export type ThemeMode = "auto" | "light" | "dark";

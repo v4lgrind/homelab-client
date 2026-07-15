@@ -6,8 +6,15 @@ export type ServiceStatus = "idle" | "testing" | "ok" | "error";
 export interface ServiceState {
   /** Sub-domain only, e.g. "radarr" (combined with the root domain). */
   subdomain: string;
+  /**
+   * Absolute base URL, when the address is discovered rather than derived from
+   * the root domain (Plex: plex.tv hands it over after sign-in).
+   */
+  baseUrl?: string;
   /** Username for userpass services (e.g. qBittorrent); non-secret, persisted. */
   username?: string;
+  /** Server name reported by the service (Jellyfin/Plex). */
+  serverName?: string;
   status: ServiceStatus;
   /** App version reported by the service on a successful test. */
   version?: string;

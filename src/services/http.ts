@@ -10,6 +10,7 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
   radarr: "/proxy-radarr",
   sonarr: "/proxy-sonarr",
   glances: "/proxy-glances",
+  jellyfin: "/proxy-jellyfin",
   qbittorrent: "/proxy-qbittorrent",
 };
 
@@ -84,7 +85,9 @@ export class ServiceHttp {
   async request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
     const url = buildUrl(this.baseUrl, path, opts.params);
     const headers: Record<string, string> = {
-      [this.authHeader]: this.apiKey,
+      // Omit the header entirely when we have no key: plex.tv rejects an empty
+      // X-Plex-Token, and the PIN flow runs before any token exists.
+      ...(this.apiKey ? { [this.authHeader]: this.apiKey } : {}),
       Accept: "application/json",
       ...(opts.data !== undefined ? { "Content-Type": "application/json" } : {}),
       ...opts.headers,

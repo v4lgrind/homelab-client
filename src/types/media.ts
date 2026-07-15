@@ -79,11 +79,77 @@ export interface PlexPin {
   authToken?: string | null;
 }
 
+export interface PlexConnection {
+  uri: string;
+  local: boolean;
+  relay?: boolean;
+  IPv6?: boolean;
+}
+
 export interface PlexResource {
   name: string;
   product: string;
   provides: string;
   clientIdentifier: string;
   accessToken?: string;
-  connections?: { uri: string; local: boolean; relay?: boolean; IPv6?: boolean }[];
+  connections?: PlexConnection[];
+}
+
+/** A Plex server the user owns, reachable at a probed connection URI. */
+export interface PlexServer {
+  name: string;
+  clientIdentifier: string;
+  /** Connection that actually answered — LAN address or plex.direct URL. */
+  uri: string;
+  /** Server-scoped token; differs from the account token. */
+  accessToken: string;
+}
+
+export interface PlexIdentity {
+  MediaContainer?: {
+    friendlyName?: string;
+    version?: string;
+    machineIdentifier?: string;
+  };
+}
+
+export interface PlexSessionRaw {
+  sessionKey?: string;
+  ratingKey?: string;
+  title?: string;
+  type?: string;
+  year?: number;
+  /** Series name, for episodes. */
+  grandparentTitle?: string;
+  /** Season number, for episodes. */
+  parentIndex?: number;
+  /** Episode number, for episodes. */
+  index?: number;
+  /** Total runtime in ms — Plex already uses ms, unlike Jellyfin ticks. */
+  duration?: number;
+  viewOffset?: number;
+  thumb?: string;
+  grandparentThumb?: string;
+  User?: { title?: string };
+  Player?: { title?: string; product?: string; state?: string };
+  Session?: { id?: string; bandwidth?: number };
+  Media?: {
+    videoResolution?: string;
+    bitrate?: number;
+    Part?: { decision?: string }[];
+  }[];
+  TranscodeSession?: {
+    videoDecision?: string;
+    audioDecision?: string;
+    sourceVideoCodec?: string;
+    videoCodec?: string;
+    height?: number;
+  };
+}
+
+export interface PlexSessionsResponse {
+  MediaContainer?: {
+    size?: number;
+    Metadata?: PlexSessionRaw[];
+  };
 }

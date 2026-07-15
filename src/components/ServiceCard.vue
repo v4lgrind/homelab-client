@@ -9,6 +9,9 @@ import {
   Clapperboard,
   KeyRound,
   Link,
+  ExternalLink,
+  Server,
+  Unplug,
   Check,
   LoaderCircle,
   Eye,
@@ -46,8 +49,35 @@ const apiKey = computed({
 const showKey = ref(false);
 const testing = computed(() => svc.value.status === "testing");
 
+/** Plex has no sub-domain: plex.tv hands the address over after sign-in. */
+const needsSubdomain = computed(
+  () => meta.value.authType !== "proxyurl" && meta.value.authType !== "plexauth",
+);
+
+/** Services signed into interactively rather than by pasting a key. */
+const isInteractive = computed(
+  () => meta.value.authType === "quickconnect" || meta.value.authType === "plexauth",
+);
+const pairing = computed(() =>
+  props.id === "jellyfin" || props.id === "plex" ? conn.pairing[props.id] : undefined,
+);
+const connected = computed(() => !!conn.apiKeys[props.id]?.trim());
+
 function test() {
   if (!testing.value) conn.testService(props.id);
+}
+
+function connect() {
+  if (props.id === "jellyfin") conn.startQuickConnect();
+  else if (props.id === "plex") conn.startPlexAuth();
+}
+
+function cancel() {
+  if (props.id === "jellyfin" || props.id === "plex") conn.cancelPairing(props.id);
+}
+
+async function disconnect() {
+  await conn.resetService(props.id);
 }
 </script>
 
@@ -113,8 +143,8 @@ function test() {
       </div>
     </div>
 
-    <!-- subdomain (not needed for the qui proxy URL) -->
-    <div v-if="meta.authType !== 'proxyurl'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+    <!-- subdomain (not needed for the qui proxy URL, nor for auto-discovered Plex) -->
+    <div v-if="needsSubdomain" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
       <input
         v-model="subdomain"
         class="flex-1 min-w-0 bg-transparent outline-none text-[15px] text-right"
@@ -162,10 +192,59 @@ function test() {
       </button>
     </div>
 
+    <!-- Quick Connect code: the user types this into a signed-in Jellyfin -->
+    <div
+      v-if="pairing?.active && pairing.code"
+      class="rounded-[14px] bg-field border border-field-border px-3 py-3 text-center"
+    >
+      <p class="text-[11px] text-muted font-semibold">Saisis ce code dans Jellyfin</p>
+      <p class="text-[26px] font-bold tracking-[0.18em] my-1">{{ pairing.code }}</p>
+      <p class="text-[11px] text-sub flex items-center justify-center gap-1.5">
+        <LoaderCircle :size="12" class="animate-spin" />
+        En attente d'approbation…
+      </p>
+    </div>
+
+    <!-- Plex sign-in happens in the browser, on plex.tv -->
+    <div
+      v-else-if="pairing?.active && meta.authType === 'plexauth'"
+      class="rounded-[14px] bg-field border border-field-border px-3 py-3 flex items-center gap-2 justify-center"
+    >
+      <LoaderCircle :size="14" class="animate-spin text-sub" />
+      <p class="text-[12px] text-sub">Connexion sur plex.tv…</p>
+    </div>
+
+    <!-- discovered Plex server -->
+    <p v-if="meta.authType === 'plexauth' && svc.serverName" class="text-[11.5px] text-sub px-1 flex items-center gap-1.5">
+      <Server :size="13" class="text-muted shrink-0" />
+      <span class="truncate">{{ svc.serverName }}</span>
+    </p>
+
     <!-- action / result -->
     <div class="flex items-center gap-2 flex-wrap">
+      <!-- interactive sign-in: no key to paste, the server or plex.tv approves -->
+      <template v-if="isInteractive && !connected">
+        <button
+          v-if="!pairing?.active"
+          type="button"
+          class="self-start px-3.5 py-2 rounded-xl bg-accent text-accent-ink text-[12.5px] font-semibold flex items-center gap-1.5 active:scale-95 transition"
+          @click="connect"
+        >
+          <component :is="meta.authType === 'plexauth' ? ExternalLink : Link" :size="14" />
+          {{ meta.authType === "plexauth" ? "Se connecter à Plex" : "Quick Connect" }}
+        </button>
+        <button
+          v-else
+          type="button"
+          class="self-start px-3.5 py-2 rounded-xl bg-chip text-sub text-[12.5px] font-semibold border border-border active:scale-95 transition"
+          @click="cancel"
+        >
+          Annuler
+        </button>
+      </template>
+
       <button
-        v-if="svc.status !== 'ok'"
+        v-else-if="svc.status !== 'ok'"
         type="button"
         :disabled="testing"
         class="self-start px-3.5 py-2 rounded-xl bg-chip text-surface-text text-[12.5px] font-semibold border border-border flex items-center gap-1.5 active:scale-95 transition disabled:opacity-60"
@@ -184,7 +263,19 @@ function test() {
         <Check :size="14" :stroke-width="2.6" />
         Testé{{ svc.version ? ` · v${svc.version}` : "" }}
       </button>
+
+      <button
+        v-if="isInteractive && connected"
+        type="button"
+        class="self-start px-3.5 py-2 rounded-xl bg-chip text-sub text-[12.5px] font-semibold border border-border flex items-center gap-1.5 active:scale-95 transition"
+        @click="disconnect"
+      >
+        <Unplug :size="14" />
+        Déconnecter
+      </button>
     </div>
+
+    <p v-if="pairing?.error" class="text-xs text-danger px-1">{{ pairing.error }}</p>
 
     <p v-if="svc.status === 'error' && svc.error" class="text-xs text-danger px-1">
       {{ svc.error }}
