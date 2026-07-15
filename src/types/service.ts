@@ -19,6 +19,12 @@ export interface ServiceState {
   /** Sub-domain only, e.g. "radarr" (combined with the root domain). */
   subdomain: string;
   /**
+   * Full hostname, when this service does not live under the root domain.
+   * Set means "ignore subdomain + rootDomain and use this" — the root domain is
+   * only ever a convenience default, never a constraint.
+   */
+  host?: string;
+  /**
    * Absolute base URL, when the address is discovered rather than derived from
    * the root domain (Plex: plex.tv hands it over after sign-in).
    */

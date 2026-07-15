@@ -1,7 +1,12 @@
 import { Preferences } from "@capacitor/preferences";
 import { ServiceHttp, serviceBaseUrl } from "@/services/http";
 import { CLIENT_INFO } from "@/constants";
-import type { JellyfinSessionRaw, JellyfinSystemInfo, QuickConnectState } from "@/types/media";
+import type {
+  JellyfinAuthResult,
+  JellyfinSessionRaw,
+  JellyfinSystemInfo,
+  QuickConnectState,
+} from "@/types/media";
 
 const DEVICE_ID_KEY = "homelab_jellyfin_device_id";
 
@@ -29,8 +34,8 @@ function authHeader(id: string, token?: string): string {
   return `MediaBrowser ${parts.join(", ")}`;
 }
 
-export function createJellyfinClient(subdomain: string, rootDomain: string, token = "") {
-  const base = serviceBaseUrl("jellyfin", subdomain, rootDomain);
+export function createJellyfinClient(host: string, token = "") {
+  const base = serviceBaseUrl("jellyfin", host);
   // Jellyfin accepts the token via X-Emby-Token; the MediaBrowser Authorization
   // header identifies the client and is required on the Quick Connect endpoints.
   const http = new ServiceHttp(base, token, "X-Emby-Token");
@@ -62,10 +67,23 @@ export function createJellyfinClient(subdomain: string, rootDomain: string, toke
     },
 
     /** Exchange an approved secret for a lasting access token. */
-    async authenticateQuickConnect(secret: string): Promise<{ AccessToken: string; User?: { Name?: string } }> {
+    async authenticateQuickConnect(secret: string): Promise<JellyfinAuthResult> {
       return http.request("/Users/AuthenticateWithQuickConnect", {
         method: "POST",
         data: { Secret: secret },
+        headers: await clientHeaders(),
+      });
+    },
+
+    /**
+     * Classic username/password sign-in, for servers with Quick Connect turned
+     * off. Yields the same kind of access token, so everything downstream is
+     * identical either way.
+     */
+    async authenticateByName(username: string, password: string): Promise<JellyfinAuthResult> {
+      return http.request("/Users/AuthenticateByName", {
+        method: "POST",
+        data: { Username: username, Pw: password },
         headers: await clientHeaders(),
       });
     },

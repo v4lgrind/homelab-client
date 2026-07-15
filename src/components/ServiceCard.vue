@@ -12,6 +12,9 @@ import {
   Link,
   ExternalLink,
   Server,
+  Globe,
+  Pencil,
+  RotateCcw,
   Unplug,
   Check,
   LoaderCircle,
@@ -57,6 +60,19 @@ const password = computed({
   get: () => conn.passwords[props.id] ?? "",
   set: (v: string) => conn.setPassword(props.id, v),
 });
+
+const host = computed({
+  get: () => svc.value.host ?? "",
+  set: (v: string) => conn.setHost(props.id, v),
+});
+/** True while this service is pinned to a hostname of its own. */
+const customHost = computed(() => conn.hasHostOverride(props.id));
+
+/** Seed the override from what the service resolves to today, so the user edits
+ *  a real hostname rather than starting from a blank field. */
+function useCustomHost() {
+  conn.setHost(props.id, conn.hostOf(props.id) || `${svc.value.subdomain}.`);
+}
 
 const showKey = ref(false);
 const showPassword = ref(false);
@@ -164,24 +180,55 @@ async function disconnect() {
         :class="auth === t ? 'bg-accent text-accent-ink' : 'text-sub active:scale-95'"
         @click="conn.setAuthType(id, t)"
       >
-        {{ AUTH_LABELS[t] ?? t }}
+        {{ meta.authLabels?.[t] ?? AUTH_LABELS[t] ?? t }}
       </button>
     </div>
 
-    <!-- subdomain (not needed for the qui proxy URL, nor for auto-discovered Plex) -->
-    <div v-if="needsSubdomain" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
-      <input
-        v-model="subdomain"
-        class="flex-1 min-w-0 bg-transparent outline-none text-[15px] text-right"
-        placeholder="sous-domaine"
-        autocapitalize="none"
-        autocorrect="off"
-        spellcheck="false"
-      />
-      <span class="text-[13px] font-semibold text-muted whitespace-nowrap">
-        .{{ conn.rootDomain || "mondomaine.com" }}
-      </span>
-    </div>
+    <!-- Address. Defaults to subdomain + root domain; the pencil breaks it out
+         onto its own hostname for a service that lives elsewhere. -->
+    <template v-if="needsSubdomain">
+      <div v-if="!customHost" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <input
+          v-model="subdomain"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[15px] text-right"
+          placeholder="sous-domaine"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <span class="text-[13px] font-semibold text-muted whitespace-nowrap">
+          .{{ conn.rootDomain || "mondomaine.com" }}
+        </span>
+        <button
+          class="text-muted shrink-0 ml-0.5"
+          type="button"
+          aria-label="Utiliser un autre domaine"
+          @click="useCustomHost"
+        >
+          <Pencil :size="15" />
+        </button>
+      </div>
+
+      <div v-else class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <Globe :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="host"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[14px]"
+          :placeholder="`${meta.defaultSubdomain || 'service'}.autredomaine.com`"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <button
+          class="text-muted shrink-0"
+          type="button"
+          aria-label="Revenir au domaine racine"
+          @click="conn.clearHost(id)"
+        >
+          <RotateCcw :size="15" />
+        </button>
+      </div>
+    </template>
 
     <!-- username + password (qBittorrent, direct) -->
     <template v-if="auth === 'userpass'">

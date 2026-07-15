@@ -122,18 +122,41 @@ export const useMediaServersStore = defineStore("mediaservers", {
     async fetchJellyfin(): Promise<{ sessions: MediaSession[]; health?: MediaServerHealth }> {
       const c = useConnectionStore();
       const token = c.apiKeys.jellyfin?.trim();
-      const svc = c.services.jellyfin;
-      if (!token || !c.rootDomain || !svc.subdomain) return { sessions: [] };
+      const host = c.hostOf("jellyfin");
+      if (!token || !host) return { sessions: [] };
 
-      const client = createJellyfinClient(svc.subdomain, c.rootDomain, token);
-      try {
+      const pull = async (t: string) => {
+        const client = createJellyfinClient(host, t);
         const [info, raw] = await Promise.all([client.getSystemInfo(), client.getSessions()]);
-        const sessions = raw
-          .map((s) => normaliseJellyfin(s, client))
-          .filter((s): s is MediaSession => s !== undefined);
         return {
-          sessions,
-          health: { server: "jellyfin", online: true, version: info.Version, name: info.ServerName },
+          info,
+          sessions: raw
+            .map((s) => normaliseJellyfin(s, client))
+            .filter((s): s is MediaSession => s !== undefined),
+        };
+      };
+
+      try {
+        let out;
+        try {
+          out = await pull(token);
+        } catch (e) {
+          // A stored token can be revoked server-side. With a username and
+          // password on file we can silently get a new one; otherwise the user
+          // has to redo Quick Connect, so let the error through.
+          const recoverable =
+            e instanceof HttpError && e.kind === "auth" && c.authTypeOf("jellyfin") === "userpass";
+          if (!recoverable) throw e;
+          out = await pull(await c.loginJellyfin());
+        }
+        return {
+          sessions: out.sessions,
+          health: {
+            server: "jellyfin",
+            online: true,
+            version: out.info.Version,
+            name: out.info.ServerName,
+          },
         };
       } catch (e) {
         return {

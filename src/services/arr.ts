@@ -28,13 +28,8 @@ export function withApiKey(url: string, base: string, apiKey: string): string {
  * same base shape; a single client type exposes both endpoint families and the
  * caller uses the ones relevant to the service.
  */
-export function createArrClient(
-  id: ServiceId,
-  subdomain: string,
-  rootDomain: string,
-  apiKey: string,
-) {
-  const base = serviceBaseUrl(id, subdomain, rootDomain);
+export function createArrClient(id: ServiceId, host: string, apiKey: string) {
+  const base = serviceBaseUrl(id, host);
   const http = new ServiceHttp(base, apiKey);
 
   /** Radarr and Sonarr both hand out TMDB remoteUrls pointing at /t/p/original —

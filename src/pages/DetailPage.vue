@@ -28,7 +28,7 @@ const id = computed(() => Number(route.params.id));
 
 const client = computed(() => {
   const svc = kind.value === "movie" ? "radarr" : "sonarr";
-  return createArrClient(svc, conn.services[svc].subdomain, conn.rootDomain, conn.apiKeys[svc] ?? "");
+  return createArrClient(svc, conn.hostOf(svc), conn.apiKeys[svc] ?? "");
 });
 
 const d = computed(() => lib.detail);

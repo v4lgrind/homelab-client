@@ -65,6 +65,22 @@ export const useConnectionStore = defineStore("connection", {
 
   getters: {
     hasKey: (state) => (id: ServiceId) => !!state.apiKeys[id]?.trim(),
+    /**
+     * The hostname a service actually lives at: its own override if it has one,
+     * otherwise subdomain + root domain. Empty when neither is usable.
+     */
+    hostOf:
+      (state) =>
+      (id: ServiceId): string => {
+        const svc = state.services[id];
+        const override = svc?.host?.trim();
+        if (override) return override;
+        const sub = svc?.subdomain?.trim();
+        const root = state.rootDomain.trim();
+        return sub && root ? `${sub}.${root}` : "";
+      },
+    /** Whether the service is pinned to a host of its own. */
+    hasHostOverride: (state) => (id: ServiceId) => !!state.services[id]?.host?.trim(),
     /** The auth method in effect: the user's pick, else the service's default. */
     authTypeOf:
       (state) =>
@@ -86,17 +102,12 @@ export const useConnectionStore = defineStore("connection", {
       }
       const username = svc.username?.trim();
       const password = state.passwords.qbittorrent;
-      if (!username || !password || !state.rootDomain.trim() || !svc.subdomain.trim()) return null;
-      return {
-        mode: "direct",
-        subdomain: svc.subdomain,
-        rootDomain: state.rootDomain,
-        username,
-        password,
-      };
+      const host = this.hostOf("qbittorrent");
+      if (!username || !password || !host) return null;
+      return { mode: "direct", host, username, password };
     },
     isConfigured(state): boolean {
-      if (!state.rootDomain.trim()) return false;
+      // No root domain requirement: a service may carry its own host.
       return SERVICES.some(
         (s) => s.available && (!!state.apiKeys[s.id]?.trim() || !!state.passwords[s.id]?.trim()),
       );
@@ -130,6 +141,22 @@ export const useConnectionStore = defineStore("connection", {
 
     setSubdomain(id: ServiceId, value: string) {
       this.services[id].subdomain = value.trim().replace(/\.+$/, "");
+      this.services[id].status = "idle";
+    },
+
+    /** Pin a service to its own hostname, independent of the root domain. */
+    setHost(id: ServiceId, value: string) {
+      const host = value
+        .trim()
+        .replace(/^https?:\/\//, "")
+        .replace(/\/+$/, "");
+      this.services[id].host = host || undefined;
+      this.services[id].status = "idle";
+    },
+
+    /** Drop the override and fall back to subdomain + root domain. */
+    clearHost(id: ServiceId) {
+      this.services[id].host = undefined;
       this.services[id].status = "idle";
     },
 
@@ -178,8 +205,9 @@ export const useConnectionStore = defineStore("connection", {
      */
     async startQuickConnect(): Promise<boolean> {
       const svc = this.services.jellyfin;
-      if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
-        this.pairing.jellyfin = { active: false, error: "Domaine et sous-domaine requis" };
+      const host = this.hostOf("jellyfin");
+      if (!host) {
+        this.pairing.jellyfin = { active: false, error: "Domaine du service requis" };
         return false;
       }
 
@@ -187,7 +215,7 @@ export const useConnectionStore = defineStore("connection", {
       svc.status = "testing";
       svc.error = undefined;
 
-      const client = createJellyfinClient(svc.subdomain, this.rootDomain);
+      const client = createJellyfinClient(host);
       try {
         if (!(await client.isQuickConnectEnabled())) {
           this.pairing.jellyfin = { active: false, error: "Quick Connect désactivé sur le serveur" };
@@ -224,6 +252,37 @@ export const useConnectionStore = defineStore("connection", {
         svc.error = msg;
         return false;
       }
+    },
+
+    /**
+     * Sign in to Jellyfin with a username and password, for servers that have
+     * Quick Connect switched off. Yields the same access token, so it is also
+     * the recovery path when a stored token stops being accepted.
+     */
+    async loginJellyfin(): Promise<string> {
+      const svc = this.services.jellyfin;
+      const host = this.hostOf("jellyfin");
+      if (!host) throw new HttpError("Domaine du service requis", 0, "unknown");
+
+      const username = svc.username?.trim();
+      const password = this.passwords.jellyfin;
+      if (!username || !password) {
+        throw new HttpError("Identifiant et mot de passe requis", 0, "auth");
+      }
+
+      const client = createJellyfinClient(host);
+      const auth = await client.authenticateByName(username, password).catch((e) => {
+        // The generic 401 wording talks about an API key, which is not what the
+        // user just typed.
+        if (e instanceof HttpError && e.kind === "auth") {
+          throw new HttpError("Identifiant ou mot de passe refusé", e.status, "auth");
+        }
+        throw e;
+      });
+      this.apiKeys.jellyfin = auth.AccessToken;
+      await this.persistApiKey("jellyfin");
+      await this.persistPassword("jellyfin");
+      return auth.AccessToken;
     },
 
     /* ---------- Plex PIN sign-in ---------- */
@@ -314,57 +373,28 @@ export const useConnectionStore = defineStore("connection", {
       const svc = this.services[id];
       const auth = this.authTypeOf(id);
       const key = this.apiKeys[id]?.trim();
+      const host = this.hostOf(id);
 
-      if (auth === "proxyurl") {
-        if (!key) {
-          svc.status = "error";
-          svc.error = "URL du proxy qui requise";
-          return false;
-        }
-      } else if (auth === "userpass") {
-        if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
-          svc.status = "error";
-          svc.error = "Domaine et sous-domaine requis";
-          return false;
-        }
-        if (!svc.username?.trim() || !this.passwords[id]) {
-          svc.status = "error";
-          svc.error = "Identifiant et mot de passe requis";
-          return false;
-        }
-      } else if (auth === "plexauth") {
-        if (!key) {
-          svc.status = "error";
-          svc.error = "Connecte-toi à Plex d'abord";
-          return false;
-        }
-        if (!svc.baseUrl) {
-          svc.status = "error";
-          svc.error = "Aucun serveur Plex découvert";
-          return false;
-        }
-      } else if (auth === "quickconnect") {
-        if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
-          svc.status = "error";
-          svc.error = "Domaine et sous-domaine requis";
-          return false;
-        }
-        if (!key) {
-          svc.status = "error";
-          svc.error = "Lance le Quick Connect d'abord";
-          return false;
-        }
-      } else {
-        if (!this.rootDomain.trim() || !svc.subdomain.trim()) {
-          svc.status = "error";
-          svc.error = "Domaine et sous-domaine requis";
-          return false;
-        }
-        if (auth === "apikey" && !key) {
-          svc.status = "error";
-          svc.error = "Clé API requise";
-          return false;
-        }
+      const fail = (error: string) => {
+        svc.status = "error";
+        svc.error = error;
+        return false;
+      };
+
+      // Everything but the two self-addressing methods needs a hostname: the qui
+      // proxy URL is already absolute, and Plex learns its address from plex.tv.
+      if (auth !== "proxyurl" && auth !== "plexauth" && !host) {
+        return fail("Domaine du service requis");
+      }
+      if (auth === "proxyurl" && !key) return fail("URL du proxy qui requise");
+      if (auth === "apikey" && !key) return fail("Clé API requise");
+      if (auth === "userpass" && (!svc.username?.trim() || !this.passwords[id])) {
+        return fail("Identifiant et mot de passe requis");
+      }
+      if (auth === "quickconnect" && !key) return fail("Lance le Quick Connect d'abord");
+      if (auth === "plexauth") {
+        if (!key) return fail("Connecte-toi à Plex d'abord");
+        if (!svc.baseUrl) return fail("Aucun serveur Plex découvert");
       }
 
       svc.status = "testing";
@@ -372,13 +402,15 @@ export const useConnectionStore = defineStore("connection", {
       try {
         if (auth === "none") {
           // Glances: no key, just check the API answers.
-          const client = createGlancesClient(svc.subdomain, this.rootDomain);
+          const client = createGlancesClient(host);
           const s = await client.getStats();
           svc.version = s.hostname;
           svc.status = "ok";
           return true;
         }
-        if (auth === "proxyurl" || auth === "userpass") {
+        // Both qBittorrent and Jellyfin can be userpass, so branch on the
+        // service here rather than on the auth method alone.
+        if (id === "qbittorrent") {
           // Via qui the URL embeds the key and qui holds the session; direct, we
           // log in ourselves. Either way transfer/info proves we are through.
           if (auth === "proxyurl") await this.persistApiKey(id);
@@ -391,8 +423,10 @@ export const useConnectionStore = defineStore("connection", {
           svc.status = "ok";
           return true;
         }
-        if (auth === "quickconnect") {
-          const client = createJellyfinClient(svc.subdomain, this.rootDomain, key!);
+        if (id === "jellyfin") {
+          // Quick Connect already yielded a token; userpass gets one now.
+          const token = auth === "userpass" ? await this.loginJellyfin() : key!;
+          const client = createJellyfinClient(host, token);
           const info = await client.getSystemInfo();
           svc.version = info.Version;
           svc.serverName = info.ServerName;
@@ -408,7 +442,7 @@ export const useConnectionStore = defineStore("connection", {
           return true;
         }
         await this.persistApiKey(id);
-        const client = createArrClient(id, svc.subdomain, this.rootDomain, key!);
+        const client = createArrClient(id, host, key!);
         const status = await client.getSystemStatus();
         svc.version = status.version;
         svc.status = "ok";

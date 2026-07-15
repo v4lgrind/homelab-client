@@ -20,7 +20,7 @@ function encodeForm(form: Form): string {
  */
 export type QbitConfig =
   | { mode: "proxy"; proxyUrl: string }
-  | { mode: "direct"; subdomain: string; rootDomain: string; username: string; password: string };
+  | { mode: "direct"; host: string; username: string; password: string };
 
 function baseUrlFor(cfg: QbitConfig): string {
   if (cfg.mode === "proxy") {
@@ -31,7 +31,7 @@ function baseUrlFor(cfg: QbitConfig): string {
       : window.location.origin + "/proxy-qbittorrent";
   }
   return Capacitor.isNativePlatform()
-    ? `https://${cfg.subdomain}.${cfg.rootDomain}`
+    ? `https://${cfg.host}`
     : window.location.origin + "/proxy-qbittorrent-direct";
 }
 

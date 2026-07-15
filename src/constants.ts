@@ -37,6 +37,8 @@ export interface ServiceMeta {
    * Omitted means authType is the only option.
    */
   authTypes?: AuthType[];
+  /** Overrides AUTH_LABELS where a service names a method its own way. */
+  authLabels?: Partial<Record<AuthType, string>>;
   /** Whether this module is implemented yet (others show "À venir"). */
   available: boolean;
 }
@@ -44,7 +46,9 @@ export interface ServiceMeta {
 /** Labels for the auth picker, kept short enough for a segmented control. */
 export const AUTH_LABELS: Partial<Record<AuthType, string>> = {
   proxyurl: "Via qui",
-  userpass: "Direct",
+  userpass: "Identifiants",
+  quickconnect: "Quick Connect",
+  apikey: "Clé API",
 };
 
 export const SERVICES: ServiceMeta[] = [
@@ -58,10 +62,21 @@ export const SERVICES: ServiceMeta[] = [
     defaultSubdomain: "qbittorrent",
     authType: "proxyurl",
     authTypes: ["proxyurl", "userpass"],
+    // "Direct" reads better than "Identifiants" next to "Via qui": here the
+    // distinction the user cares about is the route, not the credential.
+    authLabels: { userpass: "Direct" },
     available: true,
   },
   { id: "glances", name: "Glances", desc: "Stats serveur", defaultSubdomain: "glances", authType: "none", available: true },
-  { id: "jellyfin", name: "Jellyfin", desc: "Serveur média", defaultSubdomain: "jellyfin", authType: "quickconnect", available: true },
+  {
+    id: "jellyfin",
+    name: "Jellyfin",
+    desc: "Serveur média",
+    defaultSubdomain: "jellyfin",
+    authType: "quickconnect",
+    authTypes: ["quickconnect", "userpass"],
+    available: true,
+  },
   // Plex needs no subdomain: plex.tv hands us the server address after sign-in.
   { id: "plex", name: "Plex", desc: "Serveur média", defaultSubdomain: "", authType: "plexauth", available: true },
 ];

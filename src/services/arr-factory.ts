@@ -7,5 +7,5 @@ import type { MediaKind } from "@/types/arr";
 export function arrClientFor(kind: MediaKind): ArrClient {
   const svc = kind === "movie" ? "radarr" : "sonarr";
   const c = useConnectionStore();
-  return createArrClient(svc, c.services[svc].subdomain, c.rootDomain, c.apiKeys[svc] ?? "");
+  return createArrClient(svc, c.hostOf(svc), c.apiKeys[svc] ?? "");
 }

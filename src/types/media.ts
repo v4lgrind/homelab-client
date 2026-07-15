@@ -43,6 +43,12 @@ export interface JellyfinSystemInfo {
   ServerName?: string;
 }
 
+/** Returned by both Quick Connect and username/password sign-in. */
+export interface JellyfinAuthResult {
+  AccessToken: string;
+  User?: { Name?: string };
+}
+
 export interface JellyfinSessionRaw {
   Id: string;
   UserName?: string;

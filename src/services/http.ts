@@ -32,16 +32,20 @@ export class HttpError extends Error {
   }
 }
 
-/** Build the base URL for a service given the user's root domain + subdomain. */
-export function serviceBaseUrl(id: ServiceId, subdomain: string, rootDomain: string): string {
+/**
+ * Build the base URL for a service from its resolved hostname. Resolving that
+ * host (root domain + subdomain, or a per-service override) is the connection
+ * store's job — see its `hostOf` getter.
+ */
+export function serviceBaseUrl(id: ServiceId, host: string): string {
   if (Capacitor.isNativePlatform()) {
-    return `https://${subdomain}.${rootDomain}`;
+    return `https://${host}`;
   }
   const proxy = DEV_PROXY[id];
   if (proxy) return window.location.origin + proxy;
   // No dev proxy configured for this service → will likely hit CORS in the
   // browser, but works once running on device.
-  return `https://${subdomain}.${rootDomain}`;
+  return `https://${host}`;
 }
 
 export interface RequestOpts {
