@@ -49,12 +49,16 @@ access_control:
       policy: bypass
 ```
 
-## qBittorrent (via qui)
+## qBittorrent
 
-qBittorrent est piloté à travers le **Client Proxy de qui**, pas en direct.
+Deux modes au choix dans l'app (Réglages → qBittorrent → *Via qui* / *Direct*).
+
+### Via qui (par défaut)
+
+qBittorrent est piloté à travers le **Client Proxy de qui**.
 Dans qui : *Settings → Client Proxy Keys → Create Client API Key* (choisir
 l'instance qBittorrent) → copier l'**URL de proxy** (elle contient la clé), à
-coller dans l'app (Réglages → qBittorrent).
+coller dans l'app.
 
 Si `qui.valgrind.cloud` est derrière Authelia, bypasser le chemin du proxy (la
 clé protège déjà l'accès) :
@@ -64,3 +68,21 @@ clé protège déjà l'accès) :
       resources: ['^/proxy($|/)']
       policy: bypass
 ```
+
+### Direct
+
+Pour une instance qBittorrent sans qui : renseigner sous-domaine, identifiant et
+mot de passe. L'app fait le login (`/api/v2/auth/login`) et réutilise le cookie
+de session.
+
+Bypasser `/api` sur le domaine qBittorrent — le login protège déjà l'accès :
+
+```yaml
+    - domain: 'qbittorrent.valgrind.cloud'
+      resources: ['^/api($|/)']
+      policy: bypass
+```
+
+⚠️ Le WebUI de qBittorrent rejette les requêtes cross-origin (CSRF). L'app sur
+device n'envoie ni `Origin` ni `Referer`, donc c'est transparent ; en revanche
+« Enable Host header validation » doit accepter le sous-domaine utilisé.

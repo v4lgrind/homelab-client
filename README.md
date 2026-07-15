@@ -43,14 +43,22 @@ this week.
 
 ### 🧲 Torrents
 
-Full qBittorrent control through **[qui](https://getqui.com)'s Client Proxy** —
-no credentials shared with the app. List and filter your torrents, add magnets,
-pause, resume, force-resume, re-categorise or delete. Transfer speeds update
-live.
+Full qBittorrent control, either through **[qui](https://getqui.com)'s Client
+Proxy** — no credentials shared with the app — or connected **directly** to a
+plain qBittorrent. List and filter your torrents, add magnets, pause, resume,
+force-resume, re-categorise or delete. Transfer speeds update live.
+
+### 📺 Media servers
+
+See who is watching, right now, across **Jellyfin** and **Plex** at once: user,
+device, what they are playing, how far in, and whether the box is transcoding for
+them. Sign-in never handles a password — Jellyfin uses **Quick Connect**, Plex
+its own sign-in page — and your Plex server is discovered automatically.
 
 ### 📊 Server stats
 
-A Glances dashboard for the box itself: CPU, memory, load, disks and network.
+A Glances dashboard for the box itself: CPU, memory, load, disks and network —
+sitting right under the streams that explain the load.
 
 ---
 
@@ -68,18 +76,21 @@ by default.
 
 Every service sits behind a reverse proxy protected by **Authelia**. Rather than
 teaching the app to log into Authelia, a `bypass` rule is sealed onto `^/api`:
-the endpoints stay protected by each service's **own API key**, and the app only
-ever holds those keys — no master password, no session cookie, a much smaller
-blast radius. See [`docs/authelia-bypass.md`](docs/authelia-bypass.md).
+the endpoints stay protected by each service's **own credentials**, so the app
+never holds an Authelia master password that would unlock everything at once.
+Each service it can reach is one service, not the whole homelab. See
+[`docs/authelia-bypass.md`](docs/authelia-bypass.md).
 
 | Service | How the app authenticates |
 | --- | --- |
 | Radarr / Sonarr | API key (`X-Api-Key`) on `/api/v3` |
 | Glances | none — the API is reachable on its own subdomain |
-| qBittorrent | a **qui Client Proxy URL** that embeds its own key; qui keeps the qBittorrent session |
+| qBittorrent | a **qui Client Proxy URL** that embeds its own key, or a direct username/password login |
+| Jellyfin | **Quick Connect** — the app shows a code, you approve it from a session already signed in |
+| Plex | Plex's own **PIN flow** on plex.tv; the server address then comes from plex.tv, not from you |
 
-Keys are stored with `@capacitor/preferences` and never leave the device — they
-are kept out of persisted app state entirely.
+Every secret is stored with `@capacitor/preferences` and never leaves the device
+— they are kept out of persisted app state entirely.
 
 ---
 
