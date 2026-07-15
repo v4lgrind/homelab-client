@@ -1,4 +1,4 @@
-export type ServiceId = "radarr" | "sonarr" | "qbittorrent" | "glances";
+export type ServiceId = "radarr" | "sonarr" | "qbittorrent" | "glances" | "jellyfin" | "plex";
 
 export type ServiceStatus = "idle" | "testing" | "ok" | "error";
 

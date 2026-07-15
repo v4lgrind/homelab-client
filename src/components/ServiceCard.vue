@@ -5,6 +5,8 @@ import {
   Tv,
   ArrowDownToLine,
   Activity,
+  MonitorPlay,
+  Clapperboard,
   KeyRound,
   Link,
   Check,
@@ -28,6 +30,8 @@ const ICONS: Record<ServiceId, LucideIcon> = {
   sonarr: Tv,
   qbittorrent: ArrowDownToLine,
   glances: Activity,
+  jellyfin: MonitorPlay,
+  plex: Clapperboard,
 };
 
 const subdomain = computed({
