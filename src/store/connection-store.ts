@@ -1,6 +1,8 @@
 import { defineStore } from "pinia";
 import { Preferences } from "@capacitor/preferences";
 import { Browser } from "@capacitor/browser";
+import { App } from "@capacitor/app";
+import type { PluginListenerHandle } from "@capacitor/core";
 import { SERVICES, STORAGE_KEYS } from "@/constants";
 import type { AuthType, ServiceId, ServiceState } from "@/types/service";
 import { createArrClient } from "@/services/arr";
@@ -24,8 +26,76 @@ export interface PairingState {
 /** Give up rather than poll a stale code forever. */
 const PAIRING_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 2500;
+/**
+ * How long to keep asking plex.tv about the PIN once the user is back in the
+ * app. Plex marks a PIN authorised the moment they approve it, so the first
+ * poll normally answers; this window only exists to ride out a hiccup.
+ */
+const PIN_GRACE_MS = 8000;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * Resolve once the user is back in the app after the sign-in page, or false if
+ * they never come back.
+ *
+ * Android denies a backgrounded app DNS resolution, so nothing networked can
+ * run while that page is in front — the user returning is the only reliable
+ * signal we have.
+ *
+ * Do not simplify this to "is the app active?": Browser.open resolves before
+ * the tab actually reaches the front, so the app still reads as active for a
+ * moment and we would conclude they had already returned.
+ */
+function waitForReturn(timeoutMs: number): Promise<boolean> {
+  return new Promise((resolve) => {
+    const handles: PluginListenerHandle[] = [];
+    let settled = false;
+    let left = false;
+
+    const finish = (returned: boolean) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      handles.forEach((h) => h.remove());
+      resolve(returned);
+    };
+    const track = (p: Promise<PluginListenerHandle>) => {
+      // A listener can fire before addListener resolves; do not leak its handle.
+      p.then((h) => {
+        if (settled) h.remove();
+        else handles.push(h);
+      });
+    };
+
+    const timer = setTimeout(() => finish(false), timeoutMs);
+
+    // The tab was dismissed — they are back, whatever the app state says yet.
+    track(Browser.addListener("browserFinished", () => finish(true)));
+
+    track(
+      App.addListener("appStateChange", ({ isActive }) => {
+        if (!isActive) left = true;
+        else if (left) finish(true);
+      }),
+    );
+  });
+}
+
+/** Ask plex.tv about the PIN until it yields a token or the deadline passes. */
+async function pollPin(id: number, deadline: number): Promise<string | undefined> {
+  for (;;) {
+    try {
+      const token = await checkPin(id);
+      if (token) return token;
+    } catch {
+      // Ride out transient failures: the deadline is the only way out, so a
+      // single bad request can never tear the sign-in down.
+    }
+    if (Date.now() >= deadline) return undefined;
+    await sleep(POLL_INTERVAL_MS);
+  }
+}
 
 function defaultServices(): Record<ServiceId, ServiceState> {
   const out = {} as Record<ServiceId, ServiceState>;
@@ -285,8 +355,13 @@ export const useConnectionStore = defineStore("connection", {
     /* ---------- Plex PIN sign-in ---------- */
 
     /**
-     * Open plex.tv's own sign-in page and poll the PIN until it comes back
-     * authorised. Credentials only ever go to Plex, never through the app.
+     * Open plex.tv's own sign-in page, wait for the user to come back, then
+     * collect the token. Credentials only ever go to Plex, never through the app.
+     *
+     * The page is deliberately never closed from under the user. An earlier
+     * version polled the PIN while the sign-in page was in front and closed the
+     * browser on any failure — but a backgrounded app gets no DNS on Android, so
+     * every one of those polls failed and the page shut itself mid-password.
      */
     async startPlexAuth(): Promise<boolean> {
       const svc = this.services.plex;
@@ -304,29 +379,25 @@ export const useConnectionStore = defineStore("connection", {
 
       try {
         const { pin, authUrl } = await createPin();
-        await Browser.open({ url: authUrl, presentationStyle: "popover" });
+        await Browser.open({ url: authUrl });
 
-        const deadline = Date.now() + PAIRING_TIMEOUT_MS;
-        let token: string | undefined;
-        while (Date.now() < deadline) {
-          if (!this.pairing.plex.active) {
-            await Browser.close().catch(() => {});
-            return false;
-          }
-          await sleep(POLL_INTERVAL_MS);
-          token = await checkPin(pin.id);
-          if (token) break;
-        }
+        // Returning to the app is the signal: either they approved and came
+        // back, or they gave up. Both end the wait; only the PIN tells us which.
+        const returned = await waitForReturn(PAIRING_TIMEOUT_MS);
+        if (!this.pairing.plex.active) return false;
+        if (!returned) return fail("Connexion expirée — réessaie");
+
+        // Now that we are foreground again, the network works.
+        const token = await pollPin(pin.id, Date.now() + PIN_GRACE_MS);
+        // Tidy up the tab only once we no longer need the user in it.
         await Browser.close().catch(() => {});
-
-        if (!token) return fail("Connexion expirée — réessaie");
+        if (!token) return fail("Connexion Plex non terminée — réessaie");
 
         this.apiKeys.plex = token;
         await this.persistApiKey("plex");
         this.pairing.plex = { active: false };
         return await this.discoverPlex();
       } catch (e) {
-        await Browser.close().catch(() => {});
         return fail(e instanceof HttpError ? e.message : "Échec de la connexion Plex");
       }
     },

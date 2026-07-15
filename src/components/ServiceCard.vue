@@ -313,7 +313,7 @@ async function disconnect() {
       class="rounded-[14px] bg-field border border-field-border px-3 py-3 flex items-center gap-2 justify-center"
     >
       <LoaderCircle :size="14" class="animate-spin text-sub" />
-      <p class="text-[12px] text-sub">Connexion sur plex.tv…</p>
+      <p class="text-[12px] text-sub">Connecte-toi sur plex.tv, puis reviens ici.</p>
     </div>
 
     <!-- discovered Plex server -->
