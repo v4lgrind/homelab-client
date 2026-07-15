@@ -19,7 +19,7 @@ const progress = computed(() => {
 const detail = computed(() => {
   const parts = [props.session.subtitle];
   if (props.session.paused) parts.push("En pause");
-  else if (props.session.transcodeDetail) parts.push(`→ ${props.session.transcodeDetail}`);
+  else if (props.session.transcodeDetail) parts.push(`vers ${props.session.transcodeDetail}`);
   return parts.filter(Boolean).join(" · ");
 });
 
