@@ -72,9 +72,18 @@
   }
 }
 
+/* Vendor brand colours — identical in both themes, so a session is attributable
+   to its server at a glance. Only ever used as dots/underlines, never as text. */
+:root {
+  --jellyfin: #aa5cc3;
+  --plex: #e5a00d;
+}
+
 /* Expose tokens as Tailwind v4 theme colors so `bg-surface`, `text-sub`,
    `text-accent`, `border-border`, etc. work as utilities. */
 @theme inline {
+  --color-jellyfin: var(--jellyfin);
+  --color-plex: var(--plex);
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
