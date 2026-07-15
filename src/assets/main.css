@@ -83,6 +83,8 @@
 :root {
   --jellyfin: #aa5cc3;
   --plex: #e5a00d;
+  /* Tile the service logos sit on. Fixed in both themes — see ServiceLogo.vue. */
+  --logo-tile: #16191e;
 }
 
 /* Expose tokens as Tailwind v4 theme colors so `bg-surface`, `text-sub`,
