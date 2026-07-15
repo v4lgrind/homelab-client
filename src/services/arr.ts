@@ -13,6 +13,17 @@ import type {
 } from "@/types/arr";
 
 /**
+ * Append the api key to one of our own mediacover URLs. Cover URLs are cached in
+ * persisted state, so they are stored key-less (the key is a secret and lives in
+ * Preferences, never in localStorage) and completed at render time. CDN URLs need
+ * no key and are returned untouched.
+ */
+export function withApiKey(url: string, base: string, apiKey: string): string {
+  if (!apiKey || !url.startsWith(base)) return url;
+  return `${url}?apikey=${encodeURIComponent(apiKey)}`;
+}
+
+/**
  * Client for the *arr v3 API. Radarr (movies) and Sonarr (series) share the
  * same base shape; a single client type exposes both endpoint families and the
  * caller uses the ones relevant to the service.
@@ -48,7 +59,7 @@ export function createArrClient(
    *
    *  Falls back to the public CDN when an item has no local cover yet (freshly
    *  added, cover not downloaded). /api is Authelia-bypassed; the key authenticates. */
-  function imageUrl(
+  function imagePath(
     images: ArrImage[] | undefined,
     mediaId: number,
     coverType: "poster" | "fanart",
@@ -58,10 +69,19 @@ export function createArrClient(
       // Posters render ~330px wide (grid) / ~290px (detail) -> poster-500.
       // The backdrop is ~1080px but sits under a gradient -> fanart-720.
       const variant = coverType === "poster" ? "poster-500" : "fanart-720";
-      return `${base}/api/v3/mediacover/${mediaId}/${variant}.jpg?apikey=${encodeURIComponent(apiKey)}`;
+      return `${base}/api/v3/mediacover/${mediaId}/${variant}.jpg`;
     }
     if (img?.remoteUrl) return sizedRemote(img.remoteUrl, coverType === "poster" ? "w342" : "w780");
     return undefined;
+  }
+
+  function imageUrl(
+    images: ArrImage[] | undefined,
+    mediaId: number,
+    coverType: "poster" | "fanart",
+  ): string | undefined {
+    const path = imagePath(images, mediaId, coverType);
+    return path ? withApiKey(path, base, apiKey) : undefined;
   }
 
   return {
@@ -136,6 +156,8 @@ export function createArrClient(
     // helpers
     posterUrl: (images: ArrImage[] | undefined, mediaId: number) => imageUrl(images, mediaId, "poster"),
     fanartUrl: (images: ArrImage[] | undefined, mediaId: number) => imageUrl(images, mediaId, "fanart"),
+    /** Key-less poster URL, for list items that get cached in persisted state. */
+    posterPath: (images: ArrImage[] | undefined, mediaId: number) => imagePath(images, mediaId, "poster"),
   };
 }
 
