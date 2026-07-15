@@ -26,6 +26,18 @@ export function createArrClient(
   const base = serviceBaseUrl(id, subdomain, rootDomain);
   const http = new ServiceHttp(base, apiKey);
 
+  /** Radarr and Sonarr both hand out TMDB remoteUrls pointing at /t/p/original —
+   *  ~1.4 MB per poster, for a card we render ~330px wide. Rewrite to the size we
+   *  actually display (measured: original 1472 KB, w342 53 KB, w780 215 KB).
+   *  Other CDNs are left untouched. TMDB caches for a year, so the WebView's HTTP
+   *  cache handles repeats on its own — no local image cache needed. */
+  function sizedRemote(remoteUrl: string, width: "w342" | "w780"): string {
+    return remoteUrl.replace(
+      /(https:\/\/image\.tmdb\.org\/t\/p\/)(original|w\d+)(\/)/,
+      `$1${width}$3`,
+    );
+  }
+
   /** Image URL for a given cover type — prefer the public CDN (no auth), fall
    *  back to the local /api/mediacover path (bypassed by Authelia, api-key auth). */
   function imageUrl(
@@ -34,7 +46,9 @@ export function createArrClient(
     coverType: "poster" | "fanart",
   ): string | undefined {
     const img = images?.find((i) => i.coverType === coverType);
-    if (img?.remoteUrl) return img.remoteUrl;
+    // Posters: grid cards ~330px, detail poster ~290px. Backdrop: ~1080px, and it
+    // sits under a gradient, so w780 is plenty.
+    if (img?.remoteUrl) return sizedRemote(img.remoteUrl, coverType === "poster" ? "w342" : "w780");
     if (img?.url) {
       return `${base}/api/v3/mediacover/${mediaId}/${coverType}.jpg?apikey=${encodeURIComponent(apiKey)}`;
     }
