@@ -316,8 +316,10 @@ async function disconnect() {
     >
       <LoaderCircle :size="14" class="animate-spin text-sub shrink-0 mt-0.5" />
       <p class="text-[12px] text-sub leading-snug">
-        Sur plex.tv, appuie sur <span class="font-bold text-surface-text">Connexion</span> pour
-        autoriser l'app — même si tu es déjà connecté.
+        <span class="font-bold text-surface-text">1.</span> Sur plex.tv, appuie sur
+        <span class="font-bold text-surface-text">Connexion</span> — même si tu es déjà connecté.<br />
+        <span class="font-bold text-surface-text">2.</span> Reviens ici : la page ne se ferme pas
+        toute seule.
       </p>
     </div>
 
