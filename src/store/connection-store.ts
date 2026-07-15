@@ -70,9 +70,14 @@ function waitForReturn(timeoutMs: number): Promise<boolean> {
 
     const timer = setTimeout(() => finish(false), timeoutMs);
 
+    // plex.tv redirected to our forwardUrl after a successful sign-in. The most
+    // precise signal there is: it only fires when the user actually got through.
+    track(App.addListener("appUrlOpen", () => finish(true)));
+
     // The tab was dismissed — they are back, whatever the app state says yet.
     track(Browser.addListener("browserFinished", () => finish(true)));
 
+    // Fallback for a user who wanders back on their own, e.g. via recents.
     track(
       App.addListener("appStateChange", ({ isActive }) => {
         if (!isActive) left = true;
@@ -358,10 +363,12 @@ export const useConnectionStore = defineStore("connection", {
      * Open plex.tv's own sign-in page, wait for the user to come back, then
      * collect the token. Credentials only ever go to Plex, never through the app.
      *
-     * The page is deliberately never closed from under the user. An earlier
-     * version polled the PIN while the sign-in page was in front and closed the
-     * browser on any failure — but a backgrounded app gets no DNS on Android, so
-     * every one of those polls failed and the page shut itself mid-password.
+     * On success plex.tv redirects to our forwardUrl deep link, which brings the
+     * app forward on its own — so the page closes by itself without us having to
+     * watch it. That indirection is not decoration: a backgrounded app gets no
+     * DNS on Android, so we cannot detect anything while the page is in front.
+     * An earlier version tried, and closed the browser on the failures it
+     * caused, shutting the page mid-password.
      */
     async startPlexAuth(): Promise<boolean> {
       const svc = this.services.plex;
@@ -384,13 +391,14 @@ export const useConnectionStore = defineStore("connection", {
         // Returning to the app is the signal: either they approved and came
         // back, or they gave up. Both end the wait; only the PIN tells us which.
         const returned = await waitForReturn(PAIRING_TIMEOUT_MS);
+        // They are done with the page either way, so put it away now rather than
+        // leaving it stacked behind the app.
+        await Browser.close().catch(() => {});
         if (!this.pairing.plex.active) return false;
         if (!returned) return fail("Connexion expirée — réessaie");
 
         // Now that we are foreground again, the network works.
         const token = await pollPin(pin.id, Date.now() + PIN_GRACE_MS);
-        // Tidy up the tab only once we no longer need the user in it.
-        await Browser.close().catch(() => {});
         if (!token) return fail("Connexion Plex non terminée — réessaie");
 
         this.apiKeys.plex = token;

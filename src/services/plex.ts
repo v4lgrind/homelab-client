@@ -40,6 +40,13 @@ async function plexHeaders(): Promise<Record<string, string>> {
 /* ---------- account: PIN sign-in flow ---------- */
 
 /**
+ * Deep link plex.tv sends the browser to once the user has signed in. Android
+ * hands it to us, which brings the app back to the front — the cue to collect
+ * the token and dismiss the page. Matches the intent-filter in AndroidManifest.
+ */
+export const PLEX_FORWARD_URL = "com.v4lgrind.homelab://plex-auth";
+
+/**
  * Step 1 — ask plex.tv for a PIN. The user approves it by signing in at the
  * returned URL; step 2 polls until that happens.
  */
@@ -55,6 +62,7 @@ export async function createPin(): Promise<{ pin: PlexPin; authUrl: string }> {
   const params = new URLSearchParams({
     clientID: headers["X-Plex-Client-Identifier"],
     code: pin.code,
+    forwardUrl: PLEX_FORWARD_URL,
     "context[device][product]": CLIENT_INFO.name,
   });
   return { pin, authUrl: `https://app.plex.tv/auth#?${params.toString()}` };
