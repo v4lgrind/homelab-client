@@ -70,10 +70,6 @@ function waitForReturn(timeoutMs: number): Promise<boolean> {
 
     const timer = setTimeout(() => finish(false), timeoutMs);
 
-    // plex.tv redirected to our forwardUrl after a successful sign-in. The most
-    // precise signal there is: it only fires when the user actually got through.
-    track(App.addListener("appUrlOpen", () => finish(true)));
-
     // The tab was dismissed — they are back, whatever the app state says yet.
     track(Browser.addListener("browserFinished", () => finish(true)));
 
@@ -363,12 +359,11 @@ export const useConnectionStore = defineStore("connection", {
      * Open plex.tv's own sign-in page, wait for the user to come back, then
      * collect the token. Credentials only ever go to Plex, never through the app.
      *
-     * On success plex.tv redirects to our forwardUrl deep link, which brings the
-     * app forward on its own — so the page closes by itself without us having to
-     * watch it. That indirection is not decoration: a backgrounded app gets no
-     * DNS on Android, so we cannot detect anything while the page is in front.
-     * An earlier version tried, and closed the browser on the failures it
-     * caused, shutting the page mid-password.
+     * The user has to return by hand, and that is not for want of trying: Plex
+     * ignores a custom-scheme forwardUrl that would hand them back, and a
+     * backgrounded app gets no DNS on Android, so the page cannot be watched
+     * from here either. An earlier version watched anyway and closed the browser
+     * on the failures that caused, shutting the page mid-password.
      */
     async startPlexAuth(): Promise<boolean> {
       const svc = this.services.plex;

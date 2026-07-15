@@ -307,13 +307,18 @@ async function disconnect() {
       </p>
     </div>
 
-    <!-- Plex sign-in happens in the browser, on plex.tv -->
+    <!-- Plex sign-in happens in the browser, on plex.tv. Naming the button
+         matters: Plex shows a security warning and grants nothing until it is
+         pressed, and an already-signed-in user reads the page as "done". -->
     <div
       v-else-if="pairing?.active && auth === 'plexauth'"
-      class="rounded-[14px] bg-field border border-field-border px-3 py-3 flex items-center gap-2 justify-center"
+      class="rounded-[14px] bg-field border border-field-border px-3 py-3 flex items-start gap-2"
     >
-      <LoaderCircle :size="14" class="animate-spin text-sub" />
-      <p class="text-[12px] text-sub">Connecte-toi sur plex.tv, puis reviens ici.</p>
+      <LoaderCircle :size="14" class="animate-spin text-sub shrink-0 mt-0.5" />
+      <p class="text-[12px] text-sub leading-snug">
+        Sur plex.tv, appuie sur <span class="font-bold text-surface-text">Connexion</span> pour
+        autoriser l'app — même si tu es déjà connecté.
+      </p>
     </div>
 
     <!-- discovered Plex server -->
