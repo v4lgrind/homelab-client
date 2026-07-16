@@ -86,3 +86,22 @@ Bypasser `/api` sur le domaine qBittorrent — le login protège déjà l'accès
 ⚠️ Le WebUI de qBittorrent rejette les requêtes cross-origin (CSRF). L'app sur
 device n'envoie ni `Origin` ni `Referer`, donc c'est transparent ; en revanche
 « Enable Host header validation » doit accepter le sous-domaine utilisé.
+
+## Hub de notifications
+
+Le récepteur de webhooks (`server/`) vit sur son propre sous-domaine (ex.
+`hub.valgrind.cloud`). Deux chemins doivent être bypassés — les **jetons** du hub
+font l'authentification, comme ailleurs (Option B) :
+
+- `^/hook` — l'URL que Radarr/Sonarr/Uptime Kuma appellent (le jeton d'ingestion
+  est dans le chemin).
+- `^/api` — l'app lit les notifications ici (bearer d'app).
+
+```yaml
+    - domain: 'hub.valgrind.cloud'
+      resources: ['^/hook($|/)', '^/api($|/)']
+      policy: bypass
+```
+
+Déploiement : voir [`server/README.md`](../server/README.md) et
+[`server/docker-compose.example.yml`](../server/docker-compose.example.yml).
