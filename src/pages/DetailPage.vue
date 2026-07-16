@@ -15,8 +15,11 @@ import LazyImg from "@/components/LazyImg.vue";
 import { useLibraryStore } from "@/store/library-store";
 import { useConnectionStore } from "@/store/connection-store";
 import { createArrClient } from "@/services/arr";
+import { useConfirm } from "@/composables/useConfirm";
 import { formatRuntime, formatSize } from "@/lib/format";
 import type { MediaKind, Movie, Series } from "@/types/arr";
+
+const { confirm } = useConfirm();
 
 const route = useRoute();
 const router = useRouter();
@@ -83,11 +86,16 @@ function goBack() {
 
 async function onDelete() {
   if (!d.value) return;
-  const msg = `Supprimer « ${d.value.title} » ?\n\nLes fichiers sur le disque seront également supprimés.`;
-  if (!confirm(msg)) return;
-  const ok = await lib.deleteItem(true);
-  if (ok) router.replace("/");
-  else alert("La suppression a échoué.");
+  const ok = await confirm({
+    title: `Supprimer « ${d.value.title} » ?`,
+    message: "Les fichiers sur le disque seront également supprimés.",
+    confirmText: "Supprimer",
+    danger: true,
+  });
+  if (!ok) return;
+  const deleted = await lib.deleteItem(true);
+  if (deleted) router.replace("/");
+  else await confirm({ title: "La suppression a échoué.", confirmText: "OK", cancelText: null });
 }
 
 function openSearch() {

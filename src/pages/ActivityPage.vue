@@ -19,9 +19,11 @@ import BottomNav from "@/components/BottomNav.vue";
 import BottomSheet from "@/components/BottomSheet.vue";
 import LazyImg from "@/components/LazyImg.vue";
 import { useActivityStore } from "@/store/activity-store";
+import { useConfirm } from "@/composables/useConfirm";
 import { formatSize, formatEta, formatAge } from "@/lib/format";
 import type { HistoryItem, QueueItem } from "@/types/arr";
 
+const { confirm } = useConfirm();
 const router = useRouter();
 const act = useActivityStore();
 
@@ -48,21 +50,32 @@ function open(item: QueueItem | HistoryItem) {
 async function doForce() {
   const it = selected.value;
   if (!it) return;
-  if (!confirm(`Forcer l'import de « ${it.title} » ?`)) return;
+  if (!(await confirm({ title: `Forcer l'import de « ${it.title} » ?`, confirmText: "Forcer" }))) return;
   const ok = await act.forceImport(it);
   selected.value = null;
-  if (!ok) alert("Impossible de forcer l'import (aucun mapping utilisable).");
+  if (!ok)
+    await confirm({
+      title: "Import impossible",
+      message: "Aucun mapping utilisable pour cet élément.",
+      confirmText: "OK",
+      cancelText: null,
+    });
 }
 async function doRemove(blocklist: boolean) {
   const it = selected.value;
   if (!it) return;
-  const msg = blocklist
-    ? `Retirer « ${it.title} », le blocklister et relancer une recherche ?`
-    : `Retirer « ${it.title} » de la file ?`;
-  if (!confirm(msg)) return;
-  const ok = await act.removeFromQueue(it, blocklist);
+  const ok = await confirm({
+    title: blocklist ? "Retirer et blocklister ?" : "Retirer de la file ?",
+    message: blocklist
+      ? `« ${it.title} » sera retiré, blocklisté, et une nouvelle recherche relancée.`
+      : `« ${it.title} » sera retiré de la file.`,
+    confirmText: "Retirer",
+    danger: true,
+  });
+  if (!ok) return;
+  const removed = await act.removeFromQueue(it, blocklist);
   selected.value = null;
-  if (!ok) alert("Action échouée.");
+  if (!removed) await confirm({ title: "Action échouée.", confirmText: "OK", cancelText: null });
 }
 
 onMounted(() => {
