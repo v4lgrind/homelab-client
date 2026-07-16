@@ -17,7 +17,10 @@ import BottomNav from "@/components/BottomNav.vue";
 import BottomSheet from "@/components/BottomSheet.vue";
 import { useQbitStore } from "@/store/qbittorrent-store";
 import { useConnectionStore } from "@/store/connection-store";
+import { useConfirm } from "@/composables/useConfirm";
 import { formatSize, formatSpeed, formatDuration } from "@/lib/format";
+
+const { confirm } = useConfirm();
 import type { Torrent, TorrentFilter, TorrentStatus } from "@/types/qbittorrent";
 
 const router = useRouter();
@@ -59,7 +62,7 @@ async function submitAdd() {
     addPaused.value = false;
     addOpen.value = false;
   } else {
-    alert("Ajout échoué.");
+    await confirm({ title: "Ajout échoué.", confirmText: "OK", cancelText: null });
   }
 }
 
@@ -89,14 +92,19 @@ const delFiles = ref(false);
 async function doRemove() {
   const t = selected.value;
   if (!t) return;
-  const msg = delFiles.value
-    ? `Supprimer « ${t.name} » ET ses fichiers ?`
-    : `Retirer « ${t.name} » (fichiers conservés) ?`;
-  if (!confirm(msg)) return;
-  const ok = await qbit.remove(t, delFiles.value);
+  const ok = await confirm({
+    title: delFiles.value ? "Supprimer avec les fichiers ?" : "Retirer le torrent ?",
+    message: delFiles.value
+      ? `« ${t.name} » et ses fichiers sur le disque seront supprimés.`
+      : `« ${t.name} » sera retiré ; les fichiers sont conservés.`,
+    confirmText: delFiles.value ? "Supprimer" : "Retirer",
+    danger: delFiles.value,
+  });
+  if (!ok) return;
+  const removed = await qbit.remove(t, delFiles.value);
   selected.value = null;
   delFiles.value = false;
-  if (!ok) alert("Suppression échouée.");
+  if (!removed) await confirm({ title: "Suppression échouée.", confirmText: "OK", cancelText: null });
 }
 
 function meta(t: Torrent): string {

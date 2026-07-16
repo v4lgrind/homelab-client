@@ -14,7 +14,10 @@ import { SERVICES } from "@/constants";
 import { useConnectionStore } from "@/store/connection-store";
 import { useLibraryStore } from "@/store/library-store";
 import { useTheme } from "@/composables/useTheme";
+import { useConfirm } from "@/composables/useConfirm";
 import { formatSize } from "@/lib/format";
+
+const { confirm } = useConfirm();
 
 const conn = useConnectionStore();
 const lib = useLibraryStore();
@@ -45,7 +48,13 @@ const themeLabel = computed(() =>
 );
 
 async function reset() {
-  if (!confirm("Réinitialiser toute la configuration ?")) return;
+  const ok = await confirm({
+    title: "Réinitialiser toute la configuration ?",
+    message: "Tous les services, clés et réglages seront effacés de l'appareil.",
+    confirmText: "Réinitialiser",
+    danger: true,
+  });
+  if (!ok) return;
   await conn.resetAll();
   router.push({ name: "onboarding" });
 }

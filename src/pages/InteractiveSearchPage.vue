@@ -15,8 +15,11 @@ import {
 } from "@lucide/vue";
 import { useSearchStore } from "@/store/search-store";
 import { useLibraryStore } from "@/store/library-store";
+import { useConfirm } from "@/composables/useConfirm";
 import { formatSize, formatAge } from "@/lib/format";
 import type { MediaKind, Release, Series } from "@/types/arr";
+
+const { confirm } = useConfirm();
 
 const route = useRoute();
 const router = useRouter();
@@ -72,12 +75,19 @@ async function grab(r: Release) {
   if (!r.indexerId) return;
   if (r.rejected) {
     const reasons = (r.rejections ?? []).join("\n");
-    if (!confirm(`Release rejetée :\n${reasons}\n\nForcer le téléchargement ?`)) return;
-  } else if (!confirm(`Télécharger « ${r.title} » ?`)) {
+    const ok = await confirm({
+      title: "Release rejetée — forcer ?",
+      message: reasons,
+      confirmText: "Forcer",
+      danger: true,
+    });
+    if (!ok) return;
+  } else if (!(await confirm({ title: `Télécharger « ${r.title} » ?`, confirmText: "Télécharger" }))) {
     return;
   }
   const ok = await search.grab(kind.value, r);
-  if (!ok && search.grabError) alert(search.grabError);
+  if (!ok && search.grabError)
+    await confirm({ title: "Échec du téléchargement", message: search.grabError, confirmText: "OK", cancelText: null });
 }
 
 function grabbed(r: Release) {
