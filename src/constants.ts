@@ -21,6 +21,13 @@ export const STORAGE_KEYS = {
    * what the media server itself accepts.
    */
   plexServerToken: "homelab_plex_server_token",
+  /**
+   * Last add choices, remembered per kind so the add sheet defaults to what the
+   * user last picked (e.g. /tvshows) rather than the first folder the API lists
+   * (which could be /anime). Not a secret, but kept with the rest of the app's
+   * localStorage-backed keys. Suffixed with "movie" / "series".
+   */
+  addDefaultsPrefix: "homelab_add_defaults_",
 } as const;
 
 export type ThemeMode = "auto" | "light" | "dark";

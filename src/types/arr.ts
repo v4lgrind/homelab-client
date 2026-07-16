@@ -68,6 +68,8 @@ export interface Series {
   images: ArrImage[];
   statistics?: SeriesStatistics;
   seasons?: Season[];
+  /** Sonarr uses a single object here, unlike Radarr's per-source map. */
+  ratings?: { value?: number };
   tvdbId?: number;
   genres?: string[];
   certification?: string;
@@ -212,6 +214,55 @@ export interface Release {
 export type MediaDetail = Movie | Series;
 
 export type MediaKind = "movie" | "series";
+
+/** A quality profile the user has configured in Radarr/Sonarr. */
+export interface QualityProfile {
+  id: number;
+  name: string;
+}
+
+/** A root folder configured in Radarr/Sonarr. */
+export interface RootFolder {
+  id?: number;
+  path: string;
+  freeSpace?: number;
+  accessible?: boolean;
+}
+
+/**
+ * Lookup results are plain Movie/Series objects that may or may not be in the
+ * library yet. Radarr and Sonarr signal "already added" by returning a positive
+ * `id` (0 for a candidate not yet in the library).
+ */
+export type MovieLookup = Movie;
+export type SeriesLookup = Series;
+
+/** The user's choices when adding, shared by movies and series. */
+export interface AddOptions {
+  qualityProfileId: number;
+  rootFolderPath: string;
+  monitored: boolean;
+  /** Kick off a release search immediately after adding. */
+  searchOnAdd: boolean;
+}
+
+/** A normalised search result, so the page renders movies and series alike. */
+export interface SearchResult {
+  kind: MediaKind;
+  /** tmdbId (movie) or tvdbId (series) — stable identity for a candidate. */
+  externalId: number;
+  /** >0 once the item exists in the library; 0 for a candidate. */
+  libraryId: number;
+  title: string;
+  year?: number;
+  overview?: string;
+  runtime?: number;
+  rating?: number;
+  network?: string;
+  poster?: string;
+  /** The raw lookup object, POSTed back (augmented) to add the item. */
+  raw: Movie | Series;
+}
 
 /** Normalised view-model used by the library grid (movies + series share it). */
 export interface MediaItem {

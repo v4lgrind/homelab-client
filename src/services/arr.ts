@@ -1,14 +1,17 @@
 import { ServiceHttp, serviceBaseUrl } from "@/services/http";
 import type { ArrSystemStatus, ServiceId } from "@/types/service";
 import type {
+  AddOptions,
   ArrImage,
   Episode,
   HistoryRecordRaw,
   ManualImportFile,
   Movie,
   Paged,
+  QualityProfile,
   QueueRecordRaw,
   Release,
+  RootFolder,
   Series,
 } from "@/types/arr";
 
@@ -102,6 +105,38 @@ export function createArrClient(id: ServiceId, host: string, apiKey: string) {
       http.get<Release[]>("/api/v3/release", { params, timeoutMs: 90000 }),
     grabRelease: (guid: string, indexerId: number) =>
       http.post("/api/v3/release", { guid, indexerId }),
+    // discover: lookup by term, then add. Lookup hits TMDB/TheTVDB server-side,
+    // so it is slower than a local query → a wider timeout.
+    lookupMovie: (term: string) =>
+      http.get<Movie[]>("/api/v3/movie/lookup", { params: { term }, timeoutMs: 30000 }),
+    lookupSeries: (term: string) =>
+      http.get<Series[]>("/api/v3/series/lookup", { params: { term }, timeoutMs: 30000 }),
+    getQualityProfiles: () => http.get<QualityProfile[]>("/api/v3/qualityprofile"),
+    getRootFolders: () => http.get<RootFolder[]>("/api/v3/rootfolder"),
+    /** Add a movie by POSTing its lookup object back, augmented with the choices.
+     *  `id` is stripped: it is 0 on a candidate, and some versions reject it. */
+    addMovie: (lookup: Movie, opts: AddOptions) => {
+      const { id: _drop, ...rest } = lookup;
+      return http.post<Movie>("/api/v3/movie", {
+        ...rest,
+        qualityProfileId: opts.qualityProfileId,
+        rootFolderPath: opts.rootFolderPath,
+        monitored: opts.monitored,
+        minimumAvailability: "released",
+        addOptions: { searchForMovie: opts.searchOnAdd },
+      });
+    },
+    addSeries: (lookup: Series, opts: AddOptions) => {
+      const { id: _drop, ...rest } = lookup;
+      return http.post<Series>("/api/v3/series", {
+        ...rest,
+        qualityProfileId: opts.qualityProfileId,
+        rootFolderPath: opts.rootFolderPath,
+        monitored: opts.monitored,
+        seasonFolder: true,
+        addOptions: { searchForMissingEpisodes: opts.searchOnAdd, monitor: "all" },
+      });
+    },
     // calendar
     getMovieCalendar: (start: string, end: string) =>
       http.get<Movie[]>("/api/v3/calendar", { params: { start, end, unmonitored: true } }),
