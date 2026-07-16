@@ -1,0 +1,30 @@
+# Turnkey compose for the notifications hub.
+#   cp .env.example .env      # set HUB_INGEST_TOKEN and HUB_APP_TOKEN
+#   docker compose up -d
+#
+# Behind the reverse proxy, expose it on e.g. hub.valgrind.cloud with an
+# Authelia bypass on ^/hook and ^/api — the tokens are the auth (see
+# ../docs/authelia-bypass.md).
+services:
+  homelab-hub:
+    build: .
+    image: homelab-hub:latest
+    container_name: homelab-hub
+    restart: unless-stopped
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "${HUB_PORT:-8787}:8787"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://localhost:8787/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 5s

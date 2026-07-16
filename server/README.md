@@ -8,13 +8,24 @@ dependency on an external service.
 
 ## Run
 
+### Docker (recommended)
+
 ```bash
 cp .env.example .env      # set HUB_INGEST_TOKEN and HUB_APP_TOKEN
+docker compose up -d
+```
+
+The image builds from the [`Dockerfile`](Dockerfile) (multi-stage, `node:22-slim`),
+persists the SQLite db to `./data`, and has a healthcheck on `/api/health`. See
+[`docker-compose.yml`](docker-compose.yml).
+
+### From source
+
+```bash
+cp .env.example .env
 npm install
 npm run dev               # or: npm run build && npm start
 ```
-
-Or with Docker — see [`docker-compose.example.yml`](docker-compose.example.yml).
 
 ## Two tokens
 
