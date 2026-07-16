@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, ref } from "vue";
 import { useRouter } from "vue-router";
 import {
   ChevronLeft,
@@ -8,11 +8,19 @@ import {
   Moon,
   MonitorSmartphone,
   Trash2,
+  Bell,
+  Link as LinkIcon,
+  KeyRound,
+  Check,
+  LoaderCircle,
+  Eye,
+  EyeOff,
 } from "@lucide/vue";
 import ServiceCard from "@/components/ServiceCard.vue";
 import { SERVICES } from "@/constants";
 import { useConnectionStore } from "@/store/connection-store";
 import { useLibraryStore } from "@/store/library-store";
+import { useNotificationsStore } from "@/store/notifications-store";
 import { useTheme } from "@/composables/useTheme";
 import { useConfirm } from "@/composables/useConfirm";
 import { formatSize } from "@/lib/format";
@@ -21,6 +29,7 @@ const { confirm } = useConfirm();
 
 const conn = useConnectionStore();
 const lib = useLibraryStore();
+const notif = useNotificationsStore();
 const router = useRouter();
 const { theme, cycleTheme } = useTheme();
 
@@ -46,6 +55,30 @@ const themeIcon = computed(() =>
 const themeLabel = computed(() =>
   theme.value === "light" ? "Clair" : theme.value === "dark" ? "Sombre" : "Auto",
 );
+
+const hubUrl = computed({
+  get: () => notif.hubUrl,
+  set: (v: string) => notif.setHubUrl(v),
+});
+const hubToken = ref(notif.token);
+const showHubToken = ref(false);
+const hubStatus = ref<"idle" | "testing" | "ok" | "error">("idle");
+const hubError = ref<string | undefined>();
+
+async function onHubTokenLoaded() {
+  if (!notif.tokenLoaded) await notif.loadToken();
+  hubToken.value = notif.token;
+}
+onHubTokenLoaded();
+
+async function testHub() {
+  await notif.setToken(hubToken.value);
+  hubStatus.value = "testing";
+  hubError.value = undefined;
+  const ok = await notif.test();
+  hubStatus.value = ok ? "ok" : "error";
+  if (!ok) hubError.value = notif.error;
+}
 
 async function reset() {
   const ok = await confirm({
@@ -113,6 +146,55 @@ async function reset() {
     <div class="flex flex-col gap-3">
       <ServiceCard v-for="s in SERVICES" :key="s.id" :id="s.id" />
     </div>
+
+    <!-- Notifications hub -->
+    <p class="flex items-center gap-2 text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1 mt-6">
+      <Bell :size="13" /> Notifications
+    </p>
+    <section class="rounded-[22px] bg-surface border border-border p-4 flex flex-col gap-2.5">
+      <p class="text-[12px] text-sub leading-snug -mt-0.5">
+        Récepteur de webhooks self-hosté. Colle son URL et son jeton d'app.
+      </p>
+      <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <LinkIcon :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="hubUrl"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[14px]"
+          placeholder="https://hub.mondomaine.com"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+      </div>
+      <div class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
+        <KeyRound :size="16" class="text-muted shrink-0" />
+        <input
+          v-model="hubToken"
+          :type="showHubToken ? 'text' : 'password'"
+          class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
+          placeholder="Jeton d'app"
+          autocapitalize="none"
+          autocorrect="off"
+          spellcheck="false"
+        />
+        <button class="text-muted shrink-0" type="button" @click="showHubToken = !showHubToken">
+          <component :is="showHubToken ? EyeOff : Eye" :size="18" />
+        </button>
+      </div>
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          :disabled="hubStatus === 'testing' || !hubUrl.trim() || !hubToken.trim()"
+          class="self-start px-3.5 py-2 rounded-xl bg-chip text-surface-text text-[12.5px] font-semibold border border-border flex items-center gap-1.5 active:scale-95 transition disabled:opacity-60"
+          @click="testHub"
+        >
+          <LoaderCircle v-if="hubStatus === 'testing'" :size="14" class="animate-spin" />
+          <Check v-else-if="hubStatus === 'ok'" :size="14" class="text-ok" :stroke-width="2.6" />
+          {{ hubStatus === "ok" ? "Connecté" : hubStatus === "testing" ? "Test…" : "Tester le hub" }}
+        </button>
+      </div>
+      <p v-if="hubStatus === 'error' && hubError" class="text-xs text-danger px-1">{{ hubError }}</p>
+    </section>
 
     <!-- Cache -->
     <p class="text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1 mt-6">Cache</p>
