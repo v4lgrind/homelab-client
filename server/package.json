@@ -1,0 +1,23 @@
+{
+  "name": "homelab-hub",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Self-hosted webhook receiver for homelab-client — the notifications hub.",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "fastify": "^5.2.1"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/node": "^24.13.2",
+    "tsx": "^4.19.2",
+    "typescript": "~5.7.3"
+  }
+}

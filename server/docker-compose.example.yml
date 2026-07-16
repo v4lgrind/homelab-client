@@ -1,0 +1,17 @@
+# Example compose service for the notifications hub.
+# Copy the relevant bits into your homelab compose stack.
+services:
+  homelab-hub:
+    build: .
+    # or: image: ghcr.io/v4lgrind/homelab-hub:latest  (once published)
+    container_name: homelab-hub
+    restart: unless-stopped
+    environment:
+      HUB_INGEST_TOKEN: "${HUB_INGEST_TOKEN}"
+      HUB_APP_TOKEN: "${HUB_APP_TOKEN}"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "8787:8787"
+    # Put it behind the reverse proxy on e.g. hub.valgrind.cloud, with an
+    # Authelia bypass on ^/hook and ^/api — the tokens are the auth there.
