@@ -83,11 +83,8 @@ async function openAdd(result: SearchResult) {
   metaLoading.value = true;
   try {
     const meta = await disc.loadMeta(result.kind);
-    // Seed with the first profile and root folder, so it is one tap to add.
-    form.qualityProfileId = meta.profiles[0]?.id ?? 0;
-    form.rootFolderPath = meta.rootFolders[0]?.path ?? "";
-    form.monitored = true;
-    form.searchOnAdd = true;
+    // Seed with the last-used choices (or the first of each), one tap to add.
+    Object.assign(form, disc.defaultsFor(result.kind, meta));
   } catch {
     metaError.value = "Impossible de charger les profils du service";
   } finally {

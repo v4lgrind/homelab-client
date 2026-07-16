@@ -1,6 +1,7 @@
 import { defineStore } from "pinia";
 import { arrClientFor } from "@/services/arr-factory";
 import { HttpError } from "@/services/http";
+import { STORAGE_KEYS } from "@/constants";
 import type {
   AddOptions,
   MediaKind,
@@ -10,6 +11,24 @@ import type {
   SearchResult,
   Series,
 } from "@/types/arr";
+
+/** Read the user's last add choices for a kind, if any (non-secret). */
+function readDefaults(kind: MediaKind): Partial<AddOptions> | undefined {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.addDefaultsPrefix + kind);
+    return raw ? (JSON.parse(raw) as Partial<AddOptions>) : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function writeDefaults(kind: MediaKind, opts: AddOptions): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.addDefaultsPrefix + kind, JSON.stringify(opts));
+  } catch {
+    /* localStorage full/blocked — defaults are a convenience, not critical */
+  }
+}
 
 type LoadState = "idle" | "loading" | "ready" | "error";
 
@@ -126,6 +145,24 @@ export const useDiscoverStore = defineStore("discover", {
       return meta;
     },
 
+    /**
+     * Seed the add form for a kind: the user's last choices when they are still
+     * valid against the service's current profiles/folders, else the first of
+     * each. Remembering avoids defaulting a series to /anime just because the
+     * API lists it first.
+     */
+    defaultsFor(kind: MediaKind, meta: AddMeta): AddOptions {
+      const last = readDefaults(kind);
+      const profileOk = last && meta.profiles.some((p) => p.id === last.qualityProfileId);
+      const rootOk = last && meta.rootFolders.some((f) => f.path === last.rootFolderPath);
+      return {
+        qualityProfileId: profileOk ? last!.qualityProfileId! : meta.profiles[0]?.id ?? 0,
+        rootFolderPath: rootOk ? last!.rootFolderPath! : meta.rootFolders[0]?.path ?? "",
+        monitored: last?.monitored ?? true,
+        searchOnAdd: last?.searchOnAdd ?? true,
+      };
+    },
+
     async add(result: SearchResult, opts: AddOptions): Promise<boolean> {
       if (this.adding.includes(result.externalId)) return false;
       this.adding.push(result.externalId);
@@ -138,6 +175,8 @@ export const useDiscoverStore = defineStore("discover", {
           await client.addSeries(result.raw as Series, opts);
         }
         this.added.push(result.externalId);
+        // Remember these choices so the next add of this kind defaults to them.
+        writeDefaults(result.kind, opts);
         return true;
       } catch (e) {
         this.addError = e instanceof HttpError ? e.message : "Échec de l'ajout";
