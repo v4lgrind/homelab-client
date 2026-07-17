@@ -14,6 +14,15 @@ function hubBase(hubUrl: string): string {
 }
 
 /**
+ * URL for the SSE stream. EventSource cannot set headers, so the bearer goes in
+ * the query string. Works through the dev proxy in the browser and direct
+ * (CORS-enabled) on device.
+ */
+export function hubStreamUrl(hubUrl: string, token: string): string {
+  return `${hubBase(hubUrl)}/api/stream?token=${encodeURIComponent(token)}`;
+}
+
+/**
  * Client for the hub. The app authenticates with a bearer token, so ServiceHttp
  * carries it as the Authorization header rather than X-Api-Key.
  */
