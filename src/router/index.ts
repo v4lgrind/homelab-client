@@ -44,11 +44,12 @@ const router = createRouter({
       name: "calendar",
       component: () => import("@/pages/CalendarPage.vue"),
     },
-    {
-      path: "/notifications",
-      name: "notifications",
-      component: () => import("@/pages/NotificationsPage.vue"),
-    },
+    // Notifications feature paused (chore/hide-notifications).
+    // {
+    //   path: "/notifications",
+    //   name: "notifications",
+    //   component: () => import("@/pages/NotificationsPage.vue"),
+    // },
     {
       path: "/settings",
       name: "settings",

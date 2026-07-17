@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref } from "vue";
+import { computed } from "vue";
 import { useRouter } from "vue-router";
 import {
   ChevronLeft,
@@ -8,19 +8,20 @@ import {
   Moon,
   MonitorSmartphone,
   Trash2,
-  Bell,
-  Link as LinkIcon,
-  KeyRound,
-  Check,
-  LoaderCircle,
-  Eye,
-  EyeOff,
+  // Notifications feature paused — hub-config icons unused for now.
+  // Bell,
+  // Link as LinkIcon,
+  // KeyRound,
+  // Check,
+  // LoaderCircle,
+  // Eye,
+  // EyeOff,
 } from "@lucide/vue";
 import ServiceCard from "@/components/ServiceCard.vue";
 import { SERVICES } from "@/constants";
 import { useConnectionStore } from "@/store/connection-store";
 import { useLibraryStore } from "@/store/library-store";
-import { useNotificationsStore } from "@/store/notifications-store";
+// import { useNotificationsStore } from "@/store/notifications-store";
 import { useTheme } from "@/composables/useTheme";
 import { useConfirm } from "@/composables/useConfirm";
 import { formatSize } from "@/lib/format";
@@ -29,7 +30,7 @@ const { confirm } = useConfirm();
 
 const conn = useConnectionStore();
 const lib = useLibraryStore();
-const notif = useNotificationsStore();
+// const notif = useNotificationsStore();
 const router = useRouter();
 const { theme, cycleTheme } = useTheme();
 
@@ -56,30 +57,32 @@ const themeLabel = computed(() =>
   theme.value === "light" ? "Clair" : theme.value === "dark" ? "Sombre" : "Auto",
 );
 
-const hubUrl = computed({
-  get: () => notif.hubUrl,
-  set: (v: string) => notif.setHubUrl(v),
-});
-const hubToken = ref(notif.token);
-const showHubToken = ref(false);
-const hubStatus = ref<"idle" | "testing" | "ok" | "error">("idle");
-const hubError = ref<string | undefined>();
-
-async function onHubTokenLoaded() {
-  if (!notif.tokenLoaded) await notif.loadToken();
-  hubToken.value = notif.token;
-}
-onHubTokenLoaded();
-
-async function testHub() {
-  await notif.setToken(hubToken.value);
-  hubStatus.value = "testing";
-  hubError.value = undefined;
-  const ok = await notif.test();
-  hubStatus.value = ok ? "ok" : "error";
-  if (ok) notif.reconnect(); // pick up the new URL/token on the live stream
-  else hubError.value = notif.error;
-}
+// Notifications feature paused — hub config disabled. Re-enable with the block
+// below and the template section + store/service imports (chore/hide-notifications).
+// const hubUrl = computed({
+//   get: () => notif.hubUrl,
+//   set: (v: string) => notif.setHubUrl(v),
+// });
+// const hubToken = ref(notif.token);
+// const showHubToken = ref(false);
+// const hubStatus = ref<"idle" | "testing" | "ok" | "error">("idle");
+// const hubError = ref<string | undefined>();
+//
+// async function onHubTokenLoaded() {
+//   if (!notif.tokenLoaded) await notif.loadToken();
+//   hubToken.value = notif.token;
+// }
+// onHubTokenLoaded();
+//
+// async function testHub() {
+//   await notif.setToken(hubToken.value);
+//   hubStatus.value = "testing";
+//   hubError.value = undefined;
+//   const ok = await notif.test();
+//   hubStatus.value = ok ? "ok" : "error";
+//   if (ok) notif.reconnect(); // pick up the new URL/token on the live stream
+//   else hubError.value = notif.error;
+// }
 
 async function reset() {
   const ok = await confirm({
@@ -148,7 +151,7 @@ async function reset() {
       <ServiceCard v-for="s in SERVICES" :key="s.id" :id="s.id" />
     </div>
 
-    <!-- Notifications hub -->
+    <!-- Notifications hub — feature paused (chore/hide-notifications).
     <p class="flex items-center gap-2 text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1 mt-6">
       <Bell :size="13" /> Notifications
     </p>
@@ -196,6 +199,7 @@ async function reset() {
       </div>
       <p v-if="hubStatus === 'error' && hubError" class="text-xs text-danger px-1">{{ hubError }}</p>
     </section>
+    -->
 
     <!-- Cache -->
     <p class="text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1 mt-6">Cache</p>
