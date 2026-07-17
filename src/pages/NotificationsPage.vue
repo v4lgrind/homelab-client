@@ -97,6 +97,19 @@ onMounted(() => {
     </div>
 
     <template v-else>
+      <!-- live indicator -->
+      <div class="flex items-center gap-1.5 text-[11.5px] font-bold px-0.5 -mt-1 mb-1" :class="notif.connected ? 'text-ok' : 'text-muted'">
+        <span
+          class="size-[7px] rounded-full"
+          :style="
+            notif.connected
+              ? { background: 'var(--ok)', boxShadow: '0 0 0 4px color-mix(in srgb, var(--ok) 22%, transparent)' }
+              : { background: 'var(--muted)' }
+          "
+        />
+        {{ notif.connected ? "En direct" : "Hors ligne" }}
+      </div>
+
       <!-- filter chips -->
       <div class="flex gap-2 overflow-x-auto py-3 -mx-1 px-1">
         <button

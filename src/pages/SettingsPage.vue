@@ -77,7 +77,8 @@ async function testHub() {
   hubError.value = undefined;
   const ok = await notif.test();
   hubStatus.value = ok ? "ok" : "error";
-  if (!ok) hubError.value = notif.error;
+  if (ok) notif.reconnect(); // pick up the new URL/token on the live stream
+  else hubError.value = notif.error;
 }
 
 async function reset() {

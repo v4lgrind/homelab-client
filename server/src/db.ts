@@ -1,13 +1,21 @@
 import Database from "better-sqlite3";
+import { EventEmitter } from "node:events";
 import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 import type { NewNotification, Notification } from "./types.js";
 
-export class Store {
+/**
+ * SQLite-backed history. Extends EventEmitter so the SSE endpoint can subscribe:
+ * every insert emits a "notification" event with the stored row.
+ */
+export class Store extends EventEmitter {
   private readonly db: Database.Database;
   private readonly retention: number;
 
   constructor(dbPath: string, retention: number) {
+    super();
+    // One listener per connected SSE client; allow plenty.
+    this.setMaxListeners(0);
     mkdirSync(dirname(dbPath), { recursive: true });
     this.db = new Database(dbPath);
     // WAL keeps reads (the app) from blocking writes (webhooks) and vice versa.
@@ -32,7 +40,9 @@ export class Store {
       .prepare("INSERT INTO notifications (source, type, level, title, body, ts) VALUES (?, ?, ?, ?, ?, ?)")
       .run(n.source, n.type, n.level, n.title, n.body, n.ts);
     this.prune();
-    return { id: Number(info.lastInsertRowid), ...n };
+    const stored: Notification = { id: Number(info.lastInsertRowid), ...n };
+    this.emit("notification", stored);
+    return stored;
   }
 
   /**

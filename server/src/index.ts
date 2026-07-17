@@ -2,6 +2,7 @@ import Fastify from "fastify";
 import { loadConfig } from "./config.js";
 import { Store } from "./db.js";
 import { normalize } from "./normalize.js";
+import type { Notification } from "./types.js";
 
 const config = loadConfig();
 const store = new Store(config.dbPath, config.retention);
@@ -64,6 +65,44 @@ app.get<{ Querystring: { since?: string; limit?: string } }>(
     return { notifications };
   },
 );
+
+/**
+ * Live stream of new notifications (Server-Sent Events). EventSource cannot set
+ * an Authorization header, so the app token comes in the query string — fine
+ * over HTTPS, and it is the read-only token. CORS is opened because on device
+ * the WebView origin differs from the hub's; the token is the real guard.
+ */
+app.get<{ Querystring: { token?: string } }>("/api/stream", (req, reply) => {
+  if (req.query.token !== config.appToken) {
+    return reply.code(401).send({ error: "unauthorized" });
+  }
+
+  const res = reply.raw;
+  res.writeHead(200, {
+    "Content-Type": "text/event-stream",
+    "Cache-Control": "no-cache",
+    Connection: "keep-alive",
+    "Access-Control-Allow-Origin": "*",
+    // Tell nginx (and similar) not to buffer the stream.
+    "X-Accel-Buffering": "no",
+  });
+  res.write("retry: 5000\n\n"); // reconnect hint for the browser's EventSource
+  res.write(": connected\n\n");
+
+  const onNotification = (n: Notification) => res.write(`data: ${JSON.stringify(n)}\n\n`);
+  store.on("notification", onNotification);
+
+  // Comment lines keep the connection alive through idle-timeout proxies.
+  const heartbeat = setInterval(() => res.write(": ping\n\n"), 25000);
+
+  req.raw.on("close", () => {
+    clearInterval(heartbeat);
+    store.off("notification", onNotification);
+  });
+
+  // We are writing to the raw socket ourselves; stop Fastify from replying.
+  reply.hijack();
+});
 
 app
   .listen({ port: config.port, host: config.host })
