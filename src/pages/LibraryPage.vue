@@ -5,13 +5,14 @@ import { RefreshCw, CalendarDays, AlertCircle, ArrowUpDown, ArrowUp, ArrowDown, 
 import BottomNav from "@/components/BottomNav.vue";
 import PosterCard from "@/components/PosterCard.vue";
 import BottomSheet from "@/components/BottomSheet.vue";
-import NotifBell from "@/components/NotifBell.vue";
+// Notifications feature paused — see chore/hide-notifications.
+// import NotifBell from "@/components/NotifBell.vue";
 import { useLibraryStore, type LibTab, type LibFilter, type SortKey } from "@/store/library-store";
-import { useNotificationsStore } from "@/store/notifications-store";
+// import { useNotificationsStore } from "@/store/notifications-store";
 import type { MediaItem } from "@/types/arr";
 
 const lib = useLibraryStore();
-const notif = useNotificationsStore();
+// const notif = useNotificationsStore();
 const router = useRouter();
 
 // Local-only UI state (the sheet open flag); tab/filter/sort live in the store
@@ -72,9 +73,10 @@ function load(force = false) {
 watch(() => lib.tab, () => load());
 onMounted(() => {
   load();
+  // Notifications feature paused.
   // Refresh the notification badge from the home screen.
-  if (!notif.tokenLoaded) notif.loadToken().then(() => notif.fetch());
-  else notif.fetch();
+  // if (!notif.tokenLoaded) notif.loadToken().then(() => notif.fetch());
+  // else notif.fetch();
 });
 
 function select(item: MediaItem) {
@@ -88,7 +90,7 @@ function select(item: MediaItem) {
     <header class="flex items-center justify-between px-5 pt-14 pb-3">
       <h1 class="text-[26px] font-bold -tracking-[0.02em]">Bibliothèque</h1>
       <div class="flex gap-2">
-        <NotifBell />
+        <!-- Notifications feature paused. <NotifBell /> -->
         <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition" aria-label="Trier" @click="sortOpen = true">
           <ArrowUpDown :size="18" />
         </button>
