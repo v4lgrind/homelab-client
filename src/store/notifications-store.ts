@@ -12,6 +12,8 @@ type LoadState = "idle" | "loading" | "ready" | "error";
  * serialisable and must never end up in persisted state.
  */
 let eventSource: EventSource | undefined;
+/** Pending self-initiated reconnect, when the browser has given up retrying. */
+let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
 /** Callback fired for each genuinely new notification (native-notif hook). */
 let onIncoming: ((n: HubNotification) => void) | undefined;
 
@@ -118,11 +120,17 @@ export const useNotificationsStore = defineStore("notifications", {
     },
 
     /**
-     * Open the live SSE stream. Idempotent; the browser's EventSource reconnects
-     * on its own (the server sends a retry hint), so we only track the state.
+     * Open the live SSE stream. Idempotent: a no-op while an EventSource is
+     * still open or connecting, but it rebuilds a dead one — the browser's own
+     * retry stops once it gives up (readyState CLOSED, e.g. after a bad reconnect
+     * response through the proxy), which used to leave the stream stuck offline
+     * until an app restart. Safe to call repeatedly as a watchdog.
      */
     connect() {
-      if (!this.configured || eventSource) return;
+      if (!this.configured) return;
+      if (eventSource && eventSource.readyState !== EventSource.CLOSED) return;
+      this.disconnect();
+
       const es = new EventSource(hubStreamUrl(this.hubUrl, this.token));
       eventSource = es;
       es.onopen = () => {
@@ -136,12 +144,19 @@ export const useNotificationsStore = defineStore("notifications", {
         }
       };
       es.onerror = () => {
-        // EventSource retries automatically; just reflect the dropped state.
         this.connected = false;
+        // While CONNECTING the browser is still retrying on its own; only step
+        // in once it has given up entirely.
+        if (es.readyState === EventSource.CLOSED) {
+          clearTimeout(reconnectTimer);
+          reconnectTimer = setTimeout(() => this.connect(), 5000);
+        }
       };
     },
 
     disconnect() {
+      clearTimeout(reconnectTimer);
+      reconnectTimer = undefined;
       eventSource?.close();
       eventSource = undefined;
       this.connected = false;
