@@ -28,6 +28,8 @@ export const STORAGE_KEYS = {
    * localStorage-backed keys. Suffixed with "movie" / "series".
    */
   addDefaultsPrefix: "homelab_add_defaults_",
+  /** Bearer token the app presents to the notifications hub. */
+  hubToken: "homelab_hub_token",
 } as const;
 
 export type ThemeMode = "auto" | "light" | "dark";

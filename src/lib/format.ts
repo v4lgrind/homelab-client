@@ -71,6 +71,39 @@ export function formatSpeed(bytesPerSec?: number): string {
   return s ? `${s}/s` : "0 o/s";
 }
 
+/** Start-of-day for a timestamp, for grouping notifications by calendar day. */
+function startOfDay(d: Date): number {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+}
+
+/** Stable per-day key, e.g. "2026-07-16", for grouping. */
+export function dayKey(ts: number): string {
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** Human day heading: "Aujourd'hui" / "Hier" / "12 juillet". */
+export function dayLabel(ts: number): string {
+  const today = startOfDay(new Date());
+  const day = startOfDay(new Date(ts));
+  const dayMs = 86400000;
+  if (day === today) return "Aujourd'hui";
+  if (day === today - dayMs) return "Hier";
+  return new Date(ts).toLocaleDateString("fr-FR", { day: "numeric", month: "long" });
+}
+
+/** Compact time for a notification: relative under a day, clock beyond. */
+export function timeShort(ts: number): string {
+  const diff = Date.now() - ts;
+  if (diff < 0) return "à l'instant";
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "à l'instant";
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min / 60);
+  if (h < 24 && startOfDay(new Date(ts)) === startOfDay(new Date())) return `${h} h`;
+  return new Date(ts).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" });
+}
+
 /** Playback position in ms → "48:12" / "2:06:30" (hours only when needed). */
 export function formatClock(ms?: number): string {
   const total = Math.max(0, Math.floor((ms ?? 0) / 1000));
