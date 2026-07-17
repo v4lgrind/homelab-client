@@ -12,6 +12,7 @@ import { setupNativeNotifications } from "@/services/native-notifications";
 const notif = useNotificationsStore();
 const router = useRouter();
 let stateListener: PluginListenerHandle | undefined;
+let watchdog: ReturnType<typeof setInterval> | undefined;
 
 async function goLive() {
   if (!notif.tokenLoaded) await notif.loadToken();
@@ -31,10 +32,19 @@ onMounted(() => {
     if (isActive) goLive();
     else notif.disconnect();
   }).then((h) => (stateListener = h));
+
+  // Safety net for mobile flakiness (network changes, proxy idle drops): while
+  // the app is in use, make sure the stream is alive. connect() is a no-op when
+  // healthy; if it had died, this catches up and re-streams within the interval.
+  watchdog = setInterval(() => {
+    if (!notif.configured) return;
+    if (!notif.connected) goLive();
+  }, 20000);
 });
 
 onUnmounted(() => {
   stateListener?.remove();
+  if (watchdog) clearInterval(watchdog);
   notif.disconnect();
 });
 </script>
