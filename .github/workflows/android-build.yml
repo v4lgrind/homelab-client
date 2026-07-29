@@ -51,23 +51,26 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleDebug
 
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: homelab-client-debug-${{ github.sha }}
-          path: android/app/build/outputs/apk/debug/app-debug.apk
-          retention-days: 14
-
       # Publish a "nightly" prerelease so the APK is downloadable straight to a
       # phone. Only on the real main branch (skipped for manual runs elsewhere).
+      # Une prerelease par commit, pour garder un historique des builds de main.
       - name: Publish nightly prerelease
         if: github.ref == 'refs/heads/main'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release delete nightly --yes --cleanup-tag || true
-          gh release create nightly \
-            --title "Nightly Build" \
-            --notes "Build automatique du commit ${{ github.sha }} — $(date -u +'%Y-%m-%d %H:%M UTC')" \
+          source .github/scripts/nightly-tag.sh
+
+          gh release create "$NIGHTLY_TAG" \
+            --title "Nightly $NIGHTLY_DATE ($NIGHTLY_SHA7)" \
+            --notes "Build automatique de \`main\` — commit ${{ github.sha }}" \
             --prerelease \
+            --target "${{ github.sha }}" \
             android/app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Prune old nightly releases
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          KEEP: '3'
+        run: .github/scripts/prune-nightlies.sh
