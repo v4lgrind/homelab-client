@@ -72,8 +72,9 @@ function buildUrl(base: string, path: string, params?: RequestOpts["params"]): s
  * Thin HTTP client scoped to one service. Injects the API key on every
  * request and normalises errors into {@link HttpError}.
  *
- * The header carrying the key differs per vendor: *arr use X-Api-Key, Jellyfin
- * X-Emby-Token, Plex X-Plex-Token — hence authHeader.
+ * The header carrying the key differs per vendor: *arr use X-Api-Key, Plex
+ * X-Plex-Token — hence authHeader. Jellyfin passes its token in its own
+ * Authorization header instead.
  */
 export class ServiceHttp {
   private readonly baseUrl: string;

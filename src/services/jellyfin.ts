@@ -36,9 +36,10 @@ function authHeader(id: string, token?: string): string {
 
 export function createJellyfinClient(host: string, token = "") {
   const base = serviceBaseUrl("jellyfin", host);
-  // Jellyfin accepts the token via X-Emby-Token; the MediaBrowser Authorization
-  // header identifies the client and is required on the Quick Connect endpoints.
-  const http = new ServiceHttp(base, token, "X-Emby-Token");
+  // Jellyfin 12 rejects the legacy X-Emby-Token header (401), so the token
+  // rides in the MediaBrowser Authorization header, which also identifies the
+  // client and is required on the Quick Connect endpoints.
+  const http = new ServiceHttp(base, "");
 
   async function clientHeaders(): Promise<Record<string, string>> {
     return { Authorization: authHeader(await deviceId(), token || undefined) };
@@ -48,7 +49,8 @@ export function createJellyfinClient(host: string, token = "") {
     base,
 
     /** Whether the server has Quick Connect turned on at all. */
-    isQuickConnectEnabled: () => http.get<boolean>("/QuickConnect/Enabled"),
+    isQuickConnectEnabled: async () =>
+      http.get<boolean>("/QuickConnect/Enabled", { headers: await clientHeaders() }),
 
     /** Start a Quick Connect request — returns the code the user must approve. */
     async initiateQuickConnect(): Promise<QuickConnectState> {
@@ -88,17 +90,23 @@ export function createJellyfinClient(host: string, token = "") {
       });
     },
 
-    getSystemInfo: () => http.get<JellyfinSystemInfo>("/System/Info"),
+    getSystemInfo: async () =>
+      http.get<JellyfinSystemInfo>("/System/Info", { headers: await clientHeaders() }),
     /** Active playback sessions. Requires the token to belong to an admin. */
-    getSessions: () => http.get<JellyfinSessionRaw[]>("/Sessions", { params: { activeWithinSeconds: 60 } }),
+    getSessions: async () =>
+      http.get<JellyfinSessionRaw[]>("/Sessions", {
+        params: { activeWithinSeconds: 60 },
+        headers: await clientHeaders(),
+      }),
 
     /**
      * Poster for a session's item, authenticated by the token in the URL.
      * Sized for the card at 3x pixel density — asking for the CSS size alone
-     * makes it soft on a phone screen.
+     * makes it soft on a phone screen. Jellyfin 12 only takes ApiKey here;
+     * the legacy api_key param gets a 401.
      */
     imageUrl: (itemId: string) =>
-      `${base}/Items/${itemId}/Images/Primary?maxWidth=210&quality=90&api_key=${encodeURIComponent(token)}`,
+      `${base}/Items/${itemId}/Images/Primary?maxWidth=210&quality=90&ApiKey=${encodeURIComponent(token)}`,
   };
 }
 
