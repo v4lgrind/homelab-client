@@ -90,7 +90,7 @@ const empty = computed(() => act.state === "ready" && !act.queue.length && !act.
 </script>
 
 <template>
-  <div class="min-h-dvh pb-28 max-w-md mx-auto px-5 pt-14">
+  <div class="min-h-dvh pb-28 max-w-md mx-auto px-5 pt-safe">
     <header class="flex items-center justify-between mb-4">
       <h1 class="text-[26px] font-bold -tracking-[0.02em]">Activité</h1>
       <button class="size-10 rounded-[13px] bg-surface border border-border grid place-items-center text-sub active:scale-95 transition disabled:opacity-50" :disabled="act.state === 'loading'" aria-label="Rafraîchir" @click="act.fetch(true)">

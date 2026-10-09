@@ -114,7 +114,7 @@ const addLabel = computed(() =>
 </script>
 
 <template>
-  <div class="min-h-dvh pb-28 max-w-md mx-auto px-5 pt-14">
+  <div class="min-h-dvh pb-28 max-w-md mx-auto px-5 pt-safe">
     <h1 class="text-[26px] font-bold -tracking-[0.02em] mb-4">Recherche</h1>
 
     <!-- nothing configured -->

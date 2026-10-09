@@ -75,7 +75,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh pb-28 max-w-md mx-auto px-5 pt-14">
+  <div class="min-h-dvh pb-28 max-w-md mx-auto px-5 pt-safe">
     <!-- header -->
     <header class="flex items-start justify-between mb-4">
       <div class="min-w-0">

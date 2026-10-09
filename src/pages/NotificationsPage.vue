@@ -55,7 +55,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="min-h-dvh pb-10 max-w-md mx-auto px-5 pt-14">
+  <div class="min-h-dvh pb-10 max-w-md mx-auto px-5 pt-safe">
     <header class="flex items-center gap-2 mb-1">
       <button class="text-sub -ml-1 active:scale-90 transition" aria-label="Retour" @click="router.back()">
         <ChevronLeft :size="26" />

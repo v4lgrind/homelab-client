@@ -87,7 +87,7 @@ function select(item: MediaItem) {
 <template>
   <div class="min-h-dvh pb-28 max-w-md mx-auto">
     <!-- header -->
-    <header class="flex items-center justify-between px-5 pt-14 pb-3">
+    <header class="flex items-center justify-between px-5 pt-safe pb-3">
       <h1 class="text-[26px] font-bold -tracking-[0.02em]">Bibliothèque</h1>
       <div class="flex gap-2">
         <!-- Notifications feature paused. <NotifBell /> -->

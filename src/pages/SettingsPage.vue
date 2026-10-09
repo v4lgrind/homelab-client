@@ -98,7 +98,7 @@ async function reset() {
 </script>
 
 <template>
-  <main class="min-h-dvh px-[22px] pt-14 pb-28 max-w-md mx-auto">
+  <main class="min-h-dvh px-[22px] pt-safe pb-28 max-w-md mx-auto">
     <header class="mb-6">
       <h1 class="text-2xl font-bold -tracking-[0.02em]">Réglages</h1>
     </header>

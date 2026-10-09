@@ -131,7 +131,7 @@ onUnmounted(() => timer && clearInterval(timer));
 </script>
 
 <template>
-  <div class="min-h-dvh pb-28 max-w-md mx-auto px-[18px] pt-14">
+  <div class="min-h-dvh pb-28 max-w-md mx-auto px-[18px] pt-safe">
     <header class="flex items-center justify-between mb-3 px-0.5">
       <h1 class="text-[26px] font-bold -tracking-[0.02em]">Torrents</h1>
       <button

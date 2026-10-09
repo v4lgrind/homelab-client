@@ -130,7 +130,7 @@ onMounted(() => lib.fetchDetail(kind.value, id.value));
           </template>
         </LazyImg>
         <div class="absolute inset-0" style="background: linear-gradient(to top, var(--bg) 3%, transparent 60%)" />
-        <div class="absolute top-[52px] inset-x-4 flex justify-between">
+        <div class="absolute top-[calc(env(safe-area-inset-top)+12px)] inset-x-4 flex justify-between">
           <button class="size-9 rounded-xl grid place-items-center text-white border border-white/15 backdrop-blur-sm bg-black/40 active:scale-95 transition" aria-label="Retour" @click="goBack">
             <ChevronLeft :size="20" />
           </button>

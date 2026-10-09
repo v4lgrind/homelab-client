@@ -21,7 +21,7 @@ function finish() {
 </script>
 
 <template>
-  <main class="min-h-dvh px-[22px] pt-14 pb-10 max-w-md mx-auto">
+  <main class="min-h-dvh px-[22px] pt-safe pb-10 max-w-md mx-auto">
     <BrandHeader class="mb-6" />
 
     <h1 class="text-[27px] font-bold -tracking-[0.02em] mb-1.5">Configuration</h1>
