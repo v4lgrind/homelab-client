@@ -2,7 +2,6 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import {
-  ChevronLeft,
   Globe,
   SunMedium,
   Moon,
@@ -18,6 +17,7 @@ import {
   // EyeOff,
 } from "@lucide/vue";
 import ServiceCard from "@/components/ServiceCard.vue";
+import BottomNav from "@/components/BottomNav.vue";
 import { SERVICES } from "@/constants";
 import { useConnectionStore } from "@/store/connection-store";
 import { useLibraryStore } from "@/store/library-store";
@@ -98,15 +98,8 @@ async function reset() {
 </script>
 
 <template>
-  <main class="min-h-dvh px-[22px] pt-14 pb-10 max-w-md mx-auto">
-    <header class="flex items-center gap-2 mb-6">
-      <button
-        class="size-10 -ml-2 grid place-items-center text-sub active:scale-95 transition"
-        aria-label="Retour"
-        @click="router.back()"
-      >
-        <ChevronLeft :size="24" />
-      </button>
+  <main class="min-h-dvh px-[22px] pt-14 pb-28 max-w-md mx-auto">
+    <header class="mb-6">
       <h1 class="text-2xl font-bold -tracking-[0.02em]">Réglages</h1>
     </header>
 
@@ -236,5 +229,7 @@ async function reset() {
       <Trash2 :size="18" />
       Réinitialiser la configuration
     </button>
+
+    <BottomNav />
   </main>
 </template>
