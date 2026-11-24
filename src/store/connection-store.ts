@@ -1,16 +1,17 @@
 import { defineStore } from "pinia";
 import { Preferences } from "@capacitor/preferences";
 import { Browser } from "@capacitor/browser";
-import { App } from "@capacitor/app";
-import type { PluginListenerHandle } from "@capacitor/core";
 import { SERVICES, STORAGE_KEYS } from "@/constants";
 import type { AuthType, ServiceId, ServiceState } from "@/types/service";
 import { createArrClient } from "@/services/arr";
 import { createGlancesClient } from "@/services/glances";
 import { createQbitClient, type QbitConfig } from "@/services/qbittorrent";
 import { createJellyfinClient } from "@/services/jellyfin";
-import { checkPin, createPin, createPlexClient, discoverServers } from "@/services/plex";
+import { checkPin, connectServer, createPin, createPlexClient, listServers } from "@/services/plex";
+import type { PlexResource } from "@/types/media";
 import { HttpError } from "@/services/http";
+import { SERVICE_URL_ERROR, normalizeServiceUrl } from "@/lib/service-url";
+import { migrateHydratedState } from "@/store/migrate-address";
 
 /** Interactive sign-in flows (Jellyfin Quick Connect, Plex PIN). */
 export type PairingId = "jellyfin" | "plex";
@@ -27,87 +28,23 @@ export interface PairingState {
 const PAIRING_TIMEOUT_MS = 5 * 60 * 1000;
 const POLL_INTERVAL_MS = 2500;
 /**
- * How long to keep asking plex.tv about the PIN once the user is back in the
- * app. Plex marks a PIN authorised the moment they approve it, so the first
- * poll normally answers; this window only exists to ride out a hiccup.
+ * Identifies the current Plex sign-in attempt. A cancel followed by a restart
+ * within one poll interval leaves the old loop asleep; on waking it must see it
+ * has been superseded rather than poll on, and never fail the new attempt.
  */
-const PIN_GRACE_MS = 8000;
+let plexRun = 0;
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-
-/**
- * Resolve once the user is back in the app after the sign-in page, or false if
- * they never come back.
- *
- * Android denies a backgrounded app DNS resolution, so nothing networked can
- * run while that page is in front — the user returning is the only reliable
- * signal we have.
- *
- * Do not simplify this to "is the app active?": Browser.open resolves before
- * the tab actually reaches the front, so the app still reads as active for a
- * moment and we would conclude they had already returned.
- */
-function waitForReturn(timeoutMs: number): Promise<boolean> {
-  return new Promise((resolve) => {
-    const handles: PluginListenerHandle[] = [];
-    let settled = false;
-    let left = false;
-
-    const finish = (returned: boolean) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      handles.forEach((h) => h.remove());
-      resolve(returned);
-    };
-    const track = (p: Promise<PluginListenerHandle>) => {
-      // A listener can fire before addListener resolves; do not leak its handle.
-      p.then((h) => {
-        if (settled) h.remove();
-        else handles.push(h);
-      });
-    };
-
-    const timer = setTimeout(() => finish(false), timeoutMs);
-
-    // The tab was dismissed — they are back, whatever the app state says yet.
-    track(Browser.addListener("browserFinished", () => finish(true)));
-
-    // Fallback for a user who wanders back on their own, e.g. via recents.
-    track(
-      App.addListener("appStateChange", ({ isActive }) => {
-        if (!isActive) left = true;
-        else if (left) finish(true);
-      }),
-    );
-  });
-}
-
-/** Ask plex.tv about the PIN until it yields a token or the deadline passes. */
-async function pollPin(id: number, deadline: number): Promise<string | undefined> {
-  for (;;) {
-    try {
-      const token = await checkPin(id);
-      if (token) return token;
-    } catch {
-      // Ride out transient failures: the deadline is the only way out, so a
-      // single bad request can never tear the sign-in down.
-    }
-    if (Date.now() >= deadline) return undefined;
-    await sleep(POLL_INTERVAL_MS);
-  }
-}
 
 function defaultServices(): Record<ServiceId, ServiceState> {
   const out = {} as Record<ServiceId, ServiceState>;
   for (const s of SERVICES) {
-    out[s.id] = { subdomain: s.defaultSubdomain, status: "idle" };
+    out[s.id] = { status: "idle" };
   }
   return out;
 }
 
 interface State {
-  rootDomain: string;
   services: Record<ServiceId, ServiceState>;
   /** Runtime-only; loaded from / saved to Preferences (never persisted by pinia). */
   apiKeys: Record<ServiceId, string>;
@@ -117,42 +54,44 @@ interface State {
   plexServerToken: string;
   secretsLoaded: boolean;
   pairing: Record<PairingId, PairingState>;
+  /** Runtime-only: Plex servers offered for the user to pick from. */
+  plexChoices: PlexResource[];
 }
 
 export const useConnectionStore = defineStore("connection", {
   state: (): State => ({
-    rootDomain: "",
     services: defaultServices(),
     apiKeys: {} as Record<ServiceId, string>,
     passwords: {} as Record<ServiceId, string>,
     plexServerToken: "",
     secretsLoaded: false,
     pairing: { jellyfin: { active: false }, plex: { active: false } },
+    plexChoices: [],
   }),
 
   // Persist only non-secret config; API keys live in Preferences.
   persist: {
-    pick: ["rootDomain", "services"],
+    // rootDomain is no longer state, but it must be picked so a legacy value
+    // reaches afterHydrate (the plugin applies pick to what it reads back);
+    // the migration then deletes it and the next save drops it.
+    pick: ["services", "rootDomain"],
+    // Older versions persisted rootDomain + subdomain/host: fold them into a
+    // full url per service.
+    afterHydrate: (ctx) => migrateHydratedState(ctx.store.$state as unknown as Record<string, unknown>),
   },
 
   getters: {
     hasKey: (state) => (id: ServiceId) => !!state.apiKeys[id]?.trim(),
-    /**
-     * The hostname a service actually lives at: its own override if it has one,
-     * otherwise subdomain + root domain. Empty when neither is usable.
-     */
-    hostOf:
+    /** The service's address, normalised; "" when blank or invalid. */
+    urlOf:
       (state) =>
-      (id: ServiceId): string => {
-        const svc = state.services[id];
-        const override = svc?.host?.trim();
-        if (override) return override;
-        const sub = svc?.subdomain?.trim();
-        const root = state.rootDomain.trim();
-        return sub && root ? `${sub}.${root}` : "";
-      },
-    /** Whether the service is pinned to a host of its own. */
-    hasHostOverride: (state) => (id: ServiceId) => !!state.services[id]?.host?.trim(),
+      (id: ServiceId): string =>
+        normalizeServiceUrl(state.services[id]?.url ?? "") ?? "",
+    /** Error to show under the address field, if what was typed is unusable. */
+    urlError:
+      (state) =>
+      (id: ServiceId): string | undefined =>
+        normalizeServiceUrl(state.services[id]?.url ?? "") === null ? SERVICE_URL_ERROR : undefined,
     /** The auth method in effect: the user's pick, else the service's default. */
     authTypeOf:
       (state) =>
@@ -174,9 +113,10 @@ export const useConnectionStore = defineStore("connection", {
       }
       const username = svc.username?.trim();
       const password = state.passwords.qbittorrent;
-      const host = this.hostOf("qbittorrent");
-      if (!username || !password || !host) return null;
-      return { mode: "direct", host, username, password };
+      const url = this.urlOf("qbittorrent");
+      if (!url) return null;
+      // Both or neither: a lone half is caught by testService with a message.
+      return { mode: "direct", url, username: username || undefined, password: password || undefined };
     },
     isConfigured(state): boolean {
       // No root domain requirement: a service may carry its own host.
@@ -207,28 +147,13 @@ export const useConnectionStore = defineStore("connection", {
       this.secretsLoaded = true;
     },
 
-    setRootDomain(value: string) {
-      this.rootDomain = value.trim().replace(/^https?:\/\//, "").replace(/\/+$/, "");
-    },
-
-    setSubdomain(id: ServiceId, value: string) {
-      this.services[id].subdomain = value.trim().replace(/\.+$/, "");
-      this.services[id].status = "idle";
-    },
-
-    /** Pin a service to its own hostname, independent of the root domain. */
-    setHost(id: ServiceId, value: string) {
-      const host = value
-        .trim()
-        .replace(/^https?:\/\//, "")
-        .replace(/\/+$/, "");
-      this.services[id].host = host || undefined;
-      this.services[id].status = "idle";
-    },
-
-    /** Drop the override and fall back to subdomain + root domain. */
-    clearHost(id: ServiceId) {
-      this.services[id].host = undefined;
+    /**
+     * Store the address exactly as typed: this runs on every keystroke
+     * (v-model), so normalising here would eat the "/" of "http:/" mid-word.
+     * `urlOf` normalises on read.
+     */
+    setUrl(id: ServiceId, value: string) {
+      this.services[id].url = value.trim() || undefined;
       this.services[id].status = "idle";
     },
 
@@ -277,7 +202,7 @@ export const useConnectionStore = defineStore("connection", {
      */
     async startQuickConnect(): Promise<boolean> {
       const svc = this.services.jellyfin;
-      const host = this.hostOf("jellyfin");
+      const url = this.urlOf("jellyfin");
 
       const fail = (error: string) => {
         this.pairing.jellyfin = { active: false };
@@ -286,13 +211,13 @@ export const useConnectionStore = defineStore("connection", {
         return false;
       };
 
-      if (!host) return fail("Domaine du service requis");
+      if (!url) return fail("Adresse du service requise");
 
       this.pairing.jellyfin = { active: true };
       svc.status = "testing";
       svc.error = undefined;
 
-      const client = createJellyfinClient(host);
+      const client = createJellyfinClient(url);
       try {
         if (!(await client.isQuickConnectEnabled())) {
           return fail("Quick Connect désactivé sur le serveur");
@@ -329,8 +254,8 @@ export const useConnectionStore = defineStore("connection", {
      */
     async loginJellyfin(): Promise<string> {
       const svc = this.services.jellyfin;
-      const host = this.hostOf("jellyfin");
-      if (!host) throw new HttpError("Domaine du service requis", 0, "unknown");
+      const url = this.urlOf("jellyfin");
+      if (!url) throw new HttpError("Adresse du service requise", 0, "unknown");
 
       const username = svc.username?.trim();
       const password = this.passwords.jellyfin;
@@ -338,7 +263,7 @@ export const useConnectionStore = defineStore("connection", {
         throw new HttpError("Identifiant et mot de passe requis", 0, "auth");
       }
 
-      const client = createJellyfinClient(host);
+      const client = createJellyfinClient(url);
       const auth = await client.authenticateByName(username, password).catch((e) => {
         // The generic 401 wording talks about an API key, which is not what the
         // user just typed.
@@ -353,22 +278,23 @@ export const useConnectionStore = defineStore("connection", {
       return auth.AccessToken;
     },
 
-    /* ---------- Plex PIN sign-in ---------- */
+    /* ---------- Plex sign-in by code (plex.tv/link) ---------- */
 
     /**
-     * Open plex.tv's own sign-in page, wait for the user to come back, then
-     * collect the token. Credentials only ever go to Plex, never through the app.
+     * Show a short code the user types at plex.tv/link, from any device, and
+     * poll plex.tv until it is linked. Credentials only ever go to Plex.
      *
-     * The user has to return by hand, and that is not for want of trying: Plex
-     * ignores a custom-scheme forwardUrl that would hand them back, and a
-     * backgrounded app gets no DNS on Android, so the page cannot be watched
-     * from here either. An earlier version watched anyway and closed the browser
-     * on the failures that caused, shutting the page mid-password.
+     * A network error does not end the wait: if the user switches to the
+     * browser on this phone, Android cuts the backgrounded app off the network,
+     * and polling simply resumes when they come back.
      */
     async startPlexAuth(): Promise<boolean> {
       const svc = this.services.plex;
+      const run = ++plexRun;
+      const superseded = () => run !== plexRun || !this.pairing.plex.active;
 
       const fail = (error: string) => {
+        if (run !== plexRun) return false;
         this.pairing.plex = { active: false };
         svc.status = "error";
         svc.error = error;
@@ -380,35 +306,48 @@ export const useConnectionStore = defineStore("connection", {
       svc.error = undefined;
 
       try {
-        const { pin, authUrl } = await createPin();
-        await Browser.open({ url: authUrl });
+        const pin = await createPin();
+        if (superseded()) return false;
+        this.pairing.plex = { active: true, code: pin.code };
 
-        // Returning to the app is the signal: either they approved and came
-        // back, or they gave up. Both end the wait; only the PIN tells us which.
-        const returned = await waitForReturn(PAIRING_TIMEOUT_MS);
-        // They are done with the page either way, so put it away now rather than
-        // leaving it stacked behind the app.
-        await Browser.close().catch(() => {});
-        if (!this.pairing.plex.active) return false;
-        if (!returned) return fail("Connexion expirée — réessaie");
+        const deadline = Date.now() + (pin.expiresIn ? pin.expiresIn * 1000 : PAIRING_TIMEOUT_MS);
+        while (Date.now() < deadline) {
+          await sleep(POLL_INTERVAL_MS);
+          // Cancelled from the UI, or replaced by a newer attempt.
+          if (superseded()) return false;
+          let token: string | undefined;
+          try {
+            token = await checkPin(pin.id);
+          } catch (e) {
+            if (e instanceof HttpError && e.kind === "network") continue;
+            throw e;
+          }
+          if (!token) continue;
+          if (superseded()) return false;
 
-        // Now that we are foreground again, the network works.
-        const token = await pollPin(pin.id, Date.now() + PIN_GRACE_MS);
-        if (!token) return fail("Connexion Plex non terminée — réessaie");
-
-        this.apiKeys.plex = token;
-        await this.persistApiKey("plex");
-        this.pairing.plex = { active: false };
-        return await this.discoverPlex();
+          // They may have linked from the browser on this phone: put it away.
+          await Browser.close().catch(() => {});
+          this.apiKeys.plex = token;
+          await this.persistApiKey("plex");
+          this.pairing.plex = { active: false };
+          return await this.discoverPlex();
+        }
+        return fail("Code expiré — réessaie");
       } catch (e) {
         return fail(e instanceof HttpError ? e.message : "Échec de la connexion Plex");
       }
     },
 
+    /** For a user with only this phone: open the page the code goes into. */
+    async openPlexLink() {
+      await Browser.open({ url: "https://plex.tv/link" });
+    },
+
     /**
-     * Resolve a Plex server address through plex.tv. Also the recovery path when
-     * a stored address stops answering — it changes with the network (LAN at
-     * home, plex.direct outside).
+     * After sign-in (or to recover a lost address): settle on the Plex server.
+     * The remembered one if the account still sees it, the only one if there is
+     * a single server, otherwise offer the list (plexChoices) and let the user
+     * pick — the account may see servers shared with it, not just its own.
      */
     async discoverPlex(): Promise<boolean> {
       const svc = this.services.plex;
@@ -420,8 +359,43 @@ export const useConnectionStore = defineStore("connection", {
       }
 
       svc.status = "testing";
+      svc.error = undefined;
       try {
-        const [server] = await discoverServers(account);
+        const servers = await listServers(account);
+        if (!servers.length) {
+          svc.status = "error";
+          svc.error = "Aucun serveur Plex sur ce compte";
+          return false;
+        }
+        const pick =
+          servers.find((s) => s.clientIdentifier === svc.serverId) ??
+          (servers.length === 1 ? servers[0] : undefined);
+        if (!pick) {
+          this.plexChoices = servers;
+          svc.status = "idle";
+          return false;
+        }
+        return await this.selectPlexServer(pick.clientIdentifier, servers);
+      } catch (e) {
+        svc.status = "error";
+        svc.error = e instanceof HttpError ? e.message : "Découverte du serveur Plex impossible";
+        return false;
+      }
+    },
+
+    /** Connect to one server (probing only its addresses) and remember it. */
+    async selectPlexServer(id: string, servers?: PlexResource[]): Promise<boolean> {
+      const svc = this.services.plex;
+      const resource = (servers ?? this.plexChoices).find((s) => s.clientIdentifier === id);
+      const account = this.apiKeys.plex?.trim();
+      if (!resource || !account) return false;
+
+      this.plexChoices = [];
+      svc.status = "testing";
+      svc.error = undefined;
+      try {
+        const server = await connectServer(resource, account);
+        svc.serverId = server.clientIdentifier;
         svc.baseUrl = server.uri;
         svc.serverName = server.name;
         this.plexServerToken = server.accessToken;
@@ -429,9 +403,27 @@ export const useConnectionStore = defineStore("connection", {
         return await this.testService("plex");
       } catch (e) {
         svc.status = "error";
-        svc.error = e instanceof HttpError ? e.message : "Découverte du serveur Plex impossible";
+        svc.error = e instanceof HttpError ? e.message : "Connexion au serveur Plex impossible";
         return false;
       }
+    },
+
+    /** Offer the server list again, without a new plex.tv code. */
+    async changePlexServer() {
+      const account = this.apiKeys.plex?.trim();
+      if (!account) return;
+      try {
+        this.plexChoices = await listServers(account);
+      } catch (e) {
+        this.services.plex.error = e instanceof HttpError ? e.message : "Liste des serveurs Plex indisponible";
+      }
+    },
+
+    /** Close the server list. An already connected server stays as it was. */
+    cancelPlexChoice() {
+      this.plexChoices = [];
+      const svc = this.services.plex;
+      if (!svc.baseUrl) svc.status = "idle";
     },
 
     cancelPairing(id: PairingId) {
@@ -444,7 +436,7 @@ export const useConnectionStore = defineStore("connection", {
       const svc = this.services[id];
       const auth = this.authTypeOf(id);
       const key = this.apiKeys[id]?.trim();
-      const host = this.hostOf(id);
+      const url = this.urlOf(id);
 
       const fail = (error: string) => {
         svc.status = "error";
@@ -454,13 +446,22 @@ export const useConnectionStore = defineStore("connection", {
 
       // Everything but the two self-addressing methods needs a hostname: the qui
       // proxy URL is already absolute, and Plex learns its address from plex.tv.
-      if (auth !== "proxyurl" && auth !== "plexauth" && !host) {
-        return fail("Domaine du service requis");
+      if (auth !== "proxyurl" && auth !== "plexauth" && !url) {
+        return fail("Adresse du service requise");
       }
       if (auth === "proxyurl" && !key) return fail("URL du proxy qui requise");
       if (auth === "apikey" && !key) return fail("Clé API requise");
-      if (auth === "userpass" && (!svc.username?.trim() || !this.passwords[id])) {
-        return fail("Identifiant et mot de passe requis");
+      if (auth === "userpass") {
+        const hasUser = !!svc.username?.trim();
+        const hasPassword = !!this.passwords[id];
+        // qBittorrent may need no login at all (whitelisted subnet); Jellyfin
+        // always does.
+        if (id === "qbittorrent" && hasUser !== hasPassword) {
+          return fail("Identifiant et mot de passe vont ensemble");
+        }
+        if (id !== "qbittorrent" && (!hasUser || !hasPassword)) {
+          return fail("Identifiant et mot de passe requis");
+        }
       }
       if (auth === "quickconnect" && !key) return fail("Lance le Quick Connect d'abord");
       if (auth === "plexauth") {
@@ -473,7 +474,7 @@ export const useConnectionStore = defineStore("connection", {
       try {
         if (auth === "none") {
           // Glances: no key, just check the API answers.
-          const client = createGlancesClient(host);
+          const client = createGlancesClient(url);
           const s = await client.getStats();
           svc.version = s.hostname;
           svc.status = "ok";
@@ -497,7 +498,7 @@ export const useConnectionStore = defineStore("connection", {
         if (id === "jellyfin") {
           // Quick Connect already yielded a token; userpass gets one now.
           const token = auth === "userpass" ? await this.loginJellyfin() : key!;
-          const client = createJellyfinClient(host, token);
+          const client = createJellyfinClient(url, token);
           const info = await client.getSystemInfo();
           svc.version = info.Version;
           svc.serverName = info.ServerName;
@@ -513,7 +514,7 @@ export const useConnectionStore = defineStore("connection", {
           return true;
         }
         await this.persistApiKey(id);
-        const client = createArrClient(id, host, key!);
+        const client = createArrClient(id, url, key!);
         const status = await client.getSystemStatus();
         svc.version = status.version;
         svc.status = "ok";
@@ -528,14 +529,13 @@ export const useConnectionStore = defineStore("connection", {
     async resetService(id: ServiceId) {
       this.apiKeys[id] = "";
       this.passwords[id] = "";
-      this.services[id] = { subdomain: SERVICES.find((s) => s.id === id)!.defaultSubdomain, status: "idle" };
+      this.services[id] = { status: "idle" };
       await Preferences.remove({ key: STORAGE_KEYS.apiKeyPrefix + id });
       await Preferences.remove({ key: STORAGE_KEYS.passwordPrefix + id });
       if (id === "plex") await this.clearPlexServerToken();
     },
 
     async resetAll() {
-      this.rootDomain = "";
       this.services = defaultServices();
       for (const s of SERVICES) {
         this.apiKeys[s.id] = "";

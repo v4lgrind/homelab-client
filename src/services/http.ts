@@ -14,16 +14,23 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
   qbittorrent: "/proxy-qbittorrent",
 };
 
+/**
+ * "gate": the reverse proxy's auth layer (tinyauth) refused the request before
+ * it reached the service — a server-side bypass rule is missing, the key is
+ * not the problem.
+ */
+export type HttpErrorKind = "auth" | "gate" | "notfound" | "network" | "server" | "unknown";
+
 export class HttpError extends Error {
   // Declared explicitly rather than as constructor parameter properties, which
   // erasableSyntaxOnly forbids.
   readonly status: number;
-  readonly kind: "auth" | "notfound" | "network" | "server" | "unknown";
+  readonly kind: HttpErrorKind;
 
   constructor(
     message: string,
     status: number,
-    kind: "auth" | "notfound" | "network" | "server" | "unknown",
+    kind: HttpErrorKind,
   ) {
     super(message);
     this.name = "HttpError";
@@ -33,19 +40,35 @@ export class HttpError extends Error {
 }
 
 /**
- * Build the base URL for a service from its resolved hostname. Resolving that
- * host (root domain + subdomain, or a per-service override) is the connection
- * store's job — see its `hostOf` getter.
+ * Tinyauth tags the 401s it emits itself with x-tinyauth-location (the login
+ * URL). Returns a "gate" error for those, undefined for anything else.
  */
-export function serviceBaseUrl(id: ServiceId, host: string): string {
-  if (Capacitor.isNativePlatform()) {
-    return `https://${host}`;
-  }
+export function authGateError(
+  status: number,
+  headers: Record<string, string> | undefined,
+): HttpError | undefined {
+  if (status !== 401 && status !== 403) return undefined;
+  const gated = Object.keys(headers ?? {}).some((k) => k.toLowerCase() === "x-tinyauth-location");
+  if (!gated) return undefined;
+  return new HttpError(
+    "Bloqué par tinyauth — VPN connecté ?",
+    status,
+    "gate",
+  );
+}
+
+/**
+ * Base URL for a service, from its full normalised address (the connection
+ * store's `urlOf`): `https://radarr.example.com`, or a plain-HTTP LAN / VPN
+ * address such as `http://192.168.1.10:7878` that skips the reverse proxy.
+ */
+export function serviceBaseUrl(id: ServiceId, url: string): string {
+  if (Capacitor.isNativePlatform()) return url;
   const proxy = DEV_PROXY[id];
   if (proxy) return window.location.origin + proxy;
   // No dev proxy configured for this service → will likely hit CORS in the
   // browser, but works once running on device.
-  return `https://${host}`;
+  return url;
 }
 
 export interface RequestOpts {
@@ -120,6 +143,8 @@ export class ServiceHttp {
     if (status >= 200 && status < 300) {
       return res.data as T;
     }
+    const gate = authGateError(status, res.headers);
+    if (gate) throw gate;
     if (status === 401 || status === 403) {
       throw new HttpError("Clé API invalide ou refusée", status, "auth");
     }

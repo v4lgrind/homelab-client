@@ -16,17 +16,15 @@ export type AuthType = "apikey" | "userpass" | "proxyurl" | "quickconnect" | "pl
 
 /** Per-service configuration held in the connection store. */
 export interface ServiceState {
-  /** Sub-domain only, e.g. "radarr" (combined with the root domain). */
-  subdomain: string;
   /**
-   * Full hostname, when this service does not live under the root domain.
-   * Set means "ignore subdomain + rootDomain and use this" — the root domain is
-   * only ever a convenience default, never a constraint.
+   * The service's address exactly as typed (e.g. "radarr.example.com" or
+   * "http://192.168.1.10:7878"). Read it through the store's `urlOf`, which
+   * normalises it; it is stored raw because the field writes on every keystroke.
    */
-  host?: string;
+  url?: string;
   /**
-   * Absolute base URL, when the address is discovered rather than derived from
-   * the root domain (Plex: plex.tv hands it over after sign-in).
+   * Absolute base URL, when the address is discovered rather than typed
+   * (Plex: plex.tv hands it over after sign-in).
    */
   baseUrl?: string;
   /**
@@ -37,6 +35,9 @@ export interface ServiceState {
   authType?: AuthType;
   /** Username for userpass services (e.g. qBittorrent); non-secret, persisted. */
   username?: string;
+  /** Plex: clientIdentifier of the server the user picked (the account may
+   *  see several, its own and shared ones). */
+  serverId?: string;
   /** Server name reported by the service (Jellyfin/Plex). */
   serverName?: string;
   status: ServiceStatus;

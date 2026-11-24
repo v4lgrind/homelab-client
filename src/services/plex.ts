@@ -40,31 +40,18 @@ async function plexHeaders(): Promise<Record<string, string>> {
 /* ---------- account: PIN sign-in flow ---------- */
 
 /**
- * Step 1 — ask plex.tv for a PIN. The user approves it at the returned URL by
- * pressing Connexion — being signed in is not enough, Plex wants the gesture —
- * and step 2 polls until that happens.
- *
- * Deliberately no forwardUrl: passing a custom-scheme deep link there, to have
- * Plex hand the user back automatically, makes the auth page give up silently.
- * It renders the ordinary signed-in home page with no prompt, so the PIN is
- * never linked and polling returns authToken: null forever. Measured: identical
- * requests link the PIN without it and never link it with it.
+ * Step 1 — ask plex.tv for a short code (not a "strong" PIN): the 4-character
+ * kind the user types at plex.tv/link, from any device. Step 2 polls until that
+ * happens. No browser round-trip, so the app stays in front and can keep
+ * polling (Android cuts a backgrounded app off the network).
  */
-export async function createPin(): Promise<{ pin: PlexPin; authUrl: string }> {
+export async function createPin(): Promise<PlexPin> {
   const http = new ServiceHttp(PLEX_TV, "", "X-Plex-Token");
-  const headers = await plexHeaders();
-  const pin = await http.request<PlexPin>("/pins", {
+  return http.request<PlexPin>("/pins", {
     method: "POST",
-    params: { strong: true },
-    headers,
+    params: { strong: false },
+    headers: await plexHeaders(),
   });
-
-  const params = new URLSearchParams({
-    clientID: headers["X-Plex-Client-Identifier"],
-    code: pin.code,
-    "context[device][product]": CLIENT_INFO.name,
-  });
-  return { pin, authUrl: `https://app.plex.tv/auth#?${params.toString()}` };
 }
 
 /**
@@ -97,50 +84,48 @@ async function probe(uri: string, token: string): Promise<string> {
 }
 
 /**
- * Find the user's servers via plex.tv and settle on an address that actually
- * answers from wherever the phone currently is (LAN, WAN or relay). Probing
- * beats guessing: the right answer changes with the network.
+ * The servers this account can see, the user's own first (plex.tv also lists
+ * servers shared with them). No probing here: listing is one fast call, and the
+ * user picks which server to connect to.
  */
-export async function discoverServers(accountToken: string): Promise<PlexServer[]> {
+export async function listServers(accountToken: string): Promise<PlexResource[]> {
   const http = new ServiceHttp(PLEX_TV, accountToken, "X-Plex-Token");
   const resources = await http.get<PlexResource[]>("/resources", {
     params: { includeHttps: 1, includeRelay: 1 },
     headers: await plexHeaders(),
   });
+  return resources
+    .filter((r) => r.provides?.split(",").includes("server"))
+    .sort((a, b) => Number(b.owned === true) - Number(a.owned === true));
+}
 
-  const servers = resources.filter((r) => r.provides?.split(",").includes("server"));
-  const out: PlexServer[] = [];
+/**
+ * Settle on an address of one server that answers from wherever the phone is.
+ *
+ * Every probe starts at once, then tiers are accepted in order of preference:
+ * the first LAN address to answer wins outright, else the first public one,
+ * else a relay. Waiting for every probe instead (as before) cost ~29 s at home:
+ * a server advertises a dozen Docker addresses that only fail on timeout.
+ */
+export async function connectServer(r: PlexResource, accountToken: string): Promise<PlexServer> {
+  const token = r.accessToken ?? accountToken;
+  const probes = (r.connections ?? []).map((c) => {
+    const p = probe(c.uri, token);
+    p.catch(() => {}); // a tier never awaited must not surface as unhandled
+    return { tier: rank(c), p };
+  });
 
-  for (const r of servers) {
-    const token = r.accessToken ?? accountToken;
-    const candidates = [...(r.connections ?? [])].sort((a, b) => rank(a) - rank(b));
-    if (!candidates.length) continue;
-
-    // Probe in parallel — a dead LAN address costs a full timeout when tried in
-    // sequence — then keep the best-ranked one that answered.
-    const results = await Promise.all(
-      candidates.map((c) =>
-        probe(c.uri, token).then(
-          () => c,
-          () => undefined,
-        ),
-      ),
-    );
-    const reachable = results.find((c) => c !== undefined);
-    if (reachable) {
-      out.push({
-        name: r.name,
-        clientIdentifier: r.clientIdentifier,
-        uri: reachable.uri,
-        accessToken: token,
-      });
+  for (const tier of [0, 1, 3]) {
+    const inTier = probes.filter((x) => x.tier === tier);
+    if (!inTier.length) continue;
+    try {
+      const uri = await Promise.any(inTier.map((x) => x.p));
+      return { name: r.name, clientIdentifier: r.clientIdentifier, uri, accessToken: token };
+    } catch {
+      // Nothing in this tier answered: try the next one.
     }
   }
-
-  if (!out.length) {
-    throw new HttpError("Aucun serveur Plex joignable depuis ce réseau", 0, "network");
-  }
-  return out;
+  throw new HttpError("Serveur Plex injoignable depuis ce réseau", 0, "network");
 }
 
 /* ---------- server ---------- */

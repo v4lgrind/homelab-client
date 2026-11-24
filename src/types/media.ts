@@ -83,6 +83,8 @@ export interface PlexPin {
   id: number;
   code: string;
   authToken?: string | null;
+  /** Seconds until plex.tv forgets the code. */
+  expiresIn?: number;
 }
 
 export interface PlexConnection {
@@ -97,6 +99,8 @@ export interface PlexResource {
   product: string;
   provides: string;
   clientIdentifier: string;
+  /** True for the account's own servers, false for ones shared with it. */
+  owned?: boolean;
   accessToken?: string;
   connections?: PlexConnection[];
 }

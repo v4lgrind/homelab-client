@@ -34,8 +34,8 @@ function authHeader(id: string, token?: string): string {
   return `MediaBrowser ${parts.join(", ")}`;
 }
 
-export function createJellyfinClient(host: string, token = "") {
-  const base = serviceBaseUrl("jellyfin", host);
+export function createJellyfinClient(url: string, token = "") {
+  const base = serviceBaseUrl("jellyfin", url);
   // Jellyfin 12 rejects the legacy X-Emby-Token header (401), so the token
   // rides in the MediaBrowser Authorization header, which also identifies the
   // client and is required on the Quick Connect endpoints.

@@ -122,7 +122,7 @@ export const useMediaServersStore = defineStore("mediaservers", {
     async fetchJellyfin(): Promise<{ sessions: MediaSession[]; health?: MediaServerHealth }> {
       const c = useConnectionStore();
       const token = c.apiKeys.jellyfin?.trim();
-      const host = c.hostOf("jellyfin");
+      const host = c.urlOf("jellyfin");
       if (!token || !host) return { sessions: [] };
 
       const pull = async (t: string) => {

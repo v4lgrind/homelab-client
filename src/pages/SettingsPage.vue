@@ -2,7 +2,6 @@
 import { computed } from "vue";
 import { useRouter } from "vue-router";
 import {
-  Globe,
   SunMedium,
   Moon,
   MonitorSmartphone,
@@ -44,11 +43,6 @@ const cacheLabel = computed(() => {
 function purge() {
   lib.clearCache();
 }
-
-const rootDomain = computed({
-  get: () => conn.rootDomain,
-  set: (v: string) => conn.setRootDomain(v),
-});
 
 const themeIcon = computed(() =>
   theme.value === "light" ? SunMedium : theme.value === "dark" ? Moon : MonitorSmartphone,
@@ -118,25 +112,6 @@ async function reset() {
       </button>
     </section>
 
-    <!-- Serveur -->
-    <section class="rounded-[22px] bg-surface border border-border p-4 mb-3.5">
-      <p class="flex items-center gap-2 text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-3">
-        <Globe :size="14" /> Serveur
-      </p>
-      <label class="block text-[12.5px] font-semibold text-sub mb-1.5 ml-1">Domaine racine</label>
-      <div class="flex items-center gap-2 h-[50px] rounded-[14px] bg-field border border-field-border px-3">
-        <span class="text-[15px] text-muted">https://</span>
-        <input
-          v-model="rootDomain"
-          class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
-          placeholder="mondomaine.com"
-          autocapitalize="none"
-          autocorrect="off"
-          spellcheck="false"
-          inputmode="url"
-        />
-      </div>
-    </section>
 
     <!-- Services -->
     <p class="text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1">Services</p>

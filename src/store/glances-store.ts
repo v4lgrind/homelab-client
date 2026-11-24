@@ -20,7 +20,7 @@ export const useGlancesStore = defineStore("glances", {
   actions: {
     async fetch(force = false) {
       const conn = useConnectionStore();
-      const host = conn.hostOf("glances");
+      const host = conn.urlOf("glances");
       if (!host) {
         this.state = "error";
         this.error = "Glances n'est pas configuré";

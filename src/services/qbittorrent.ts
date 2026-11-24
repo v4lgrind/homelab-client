@@ -1,5 +1,5 @@
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
-import { HttpError } from "@/services/http";
+import { HttpError, authGateError } from "@/services/http";
 import type { AddTorrentOptions, QbitTorrentRaw, QbitTransfer } from "@/types/qbittorrent";
 
 type Form = Record<string, string | number | boolean | undefined>;
@@ -20,7 +20,9 @@ function encodeForm(form: Form): string {
  */
 export type QbitConfig =
   | { mode: "proxy"; proxyUrl: string }
-  | { mode: "direct"; host: string; username: string; password: string };
+  // Credentials are optional: qBittorrent can skip its login for whitelisted
+  // subnets (LAN / VPN).
+  | { mode: "direct"; url: string; username?: string; password?: string };
 
 function baseUrlFor(cfg: QbitConfig): string {
   if (cfg.mode === "proxy") {
@@ -31,7 +33,7 @@ function baseUrlFor(cfg: QbitConfig): string {
       : window.location.origin + "/proxy-qbittorrent";
   }
   return Capacitor.isNativePlatform()
-    ? `https://${cfg.host}`
+    ? cfg.url
     : window.location.origin + "/proxy-qbittorrent-direct";
 }
 
@@ -81,12 +83,18 @@ export function createQbitClient(cfg: QbitConfig) {
     }
   }
 
+  const hasCredentials = cfg.mode === "direct" && !!(cfg.username || cfg.password);
+  // Both or neither: a lone half can only fail, so refuse before the network.
+  const halfCredentials = cfg.mode === "direct" && !!cfg.username !== !!cfg.password;
+
   async function login(): Promise<void> {
-    if (cfg.mode !== "direct") return;
+    if (cfg.mode !== "direct" || !hasCredentials) return;
     const res = await raw("/api/v2/auth/login", {
       method: "POST",
       form: { username: cfg.username, password: cfg.password },
     });
+    const gate = authGateError(res.status, res.headers);
+    if (gate) throw gate;
     // qBittorrent answers 200 with the body "Fails." on bad credentials, and
     // 403 when it has banned the IP after too many attempts.
     if (res.status === 403) {
@@ -106,12 +114,13 @@ export function createQbitClient(cfg: QbitConfig) {
     path: string,
     opts: { method?: "GET" | "POST"; form?: Form; timeoutMs?: number } = {},
   ): Promise<T> {
+    if (halfCredentials) throw new HttpError("Identifiant et mot de passe vont ensemble", 0, "auth");
     if (cfg.mode === "direct" && !loggedIn) await login();
 
     let res = await raw(path, opts);
     // A direct session expires server-side; log back in once and retry rather
     // than surfacing a spurious auth error.
-    if (res.status === 403 && cfg.mode === "direct") {
+    if (res.status === 403 && hasCredentials) {
       loggedIn = false;
       sid = undefined;
       await login();
@@ -119,9 +128,15 @@ export function createQbitClient(cfg: QbitConfig) {
     }
 
     const status = res.status;
+    const gate = authGateError(status, res.headers);
+    if (gate) throw gate;
     if (status === 401 || status === 403) {
       throw new HttpError(
-        cfg.mode === "proxy" ? "Proxy qui refusé (clé invalide ?)" : "Identifiants qBittorrent refusés",
+        cfg.mode === "proxy"
+          ? "Proxy qui refusé (clé invalide ?)"
+          : hasCredentials
+            ? "Identifiants qBittorrent refusés"
+            : "qBittorrent demande un login — renseigne-le, ou autorise ton sous-réseau dans qBittorrent",
         status,
         "auth",
       );

@@ -31,7 +31,7 @@ const id = computed(() => Number(route.params.id));
 
 const client = computed(() => {
   const svc = kind.value === "movie" ? "radarr" : "sonarr";
-  return createArrClient(svc, conn.hostOf(svc), conn.apiKeys[svc] ?? "");
+  return createArrClient(svc, conn.urlOf(svc), conn.apiKeys[svc] ?? "");
 });
 
 const d = computed(() => lib.detail);

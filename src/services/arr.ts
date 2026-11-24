@@ -22,7 +22,9 @@ import type {
  * no key and are returned untouched.
  */
 export function withApiKey(url: string, base: string, apiKey: string): string {
-  if (!apiKey || !url.startsWith(base)) return url;
+  // No base (address blank or invalid): every URL "starts with" "", and the key
+  // would leak to TMDB.
+  if (!apiKey || !base || !url.startsWith(base)) return url;
   return `${url}?apikey=${encodeURIComponent(apiKey)}`;
 }
 
@@ -31,8 +33,8 @@ export function withApiKey(url: string, base: string, apiKey: string): string {
  * same base shape; a single client type exposes both endpoint families and the
  * caller uses the ones relevant to the service.
  */
-export function createArrClient(id: ServiceId, host: string, apiKey: string) {
-  const base = serviceBaseUrl(id, host);
+export function createArrClient(id: ServiceId, url: string, apiKey: string) {
+  const base = serviceBaseUrl(id, url);
   const http = new ServiceHttp(base, apiKey);
 
   /** Radarr and Sonarr both hand out TMDB remoteUrls pointing at /t/p/original —
