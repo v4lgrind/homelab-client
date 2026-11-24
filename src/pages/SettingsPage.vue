@@ -14,12 +14,15 @@ import {
   // LoaderCircle,
   // Eye,
   // EyeOff,
+  RefreshCw,
 } from "@lucide/vue";
 import ServiceCard from "@/components/ServiceCard.vue";
 import BottomNav from "@/components/BottomNav.vue";
 import { SERVICES } from "@/constants";
 import { useConnectionStore } from "@/store/connection-store";
 import { useLibraryStore } from "@/store/library-store";
+import { useAppUpdateStore } from "@/store/app-update-store";
+import AppUpdateAction from "@/components/update/AppUpdateAction.vue";
 // import { useNotificationsStore } from "@/store/notifications-store";
 import { useTheme } from "@/composables/useTheme";
 import { useConfirm } from "@/composables/useConfirm";
@@ -29,6 +32,7 @@ const { confirm } = useConfirm();
 
 const conn = useConnectionStore();
 const lib = useLibraryStore();
+const updates = useAppUpdateStore();
 // const notif = useNotificationsStore();
 const router = useRouter();
 const { theme, cycleTheme } = useTheme();
@@ -194,6 +198,43 @@ async function reset() {
         Les jaquettes, elles, sont gérées par le cache du système.
       </p>
     </section>
+
+    <!-- Application: installed version and in-app updates (Android) -->
+    <template v-if="updates.supported">
+      <p class="text-xs font-semibold tracking-[0.12em] uppercase text-muted mb-2.5 ml-1 mt-6">Application</p>
+      <section class="rounded-[22px] bg-surface border border-border p-4 flex flex-col gap-2">
+        <div class="flex items-center justify-between h-12 rounded-[14px] bg-field border border-field-border px-3.5">
+          <span class="text-[15px] font-medium">Version</span>
+          <span class="text-sub text-sm font-semibold">{{ updates.installedVersion }}</span>
+        </div>
+        <template v-if="updates.update">
+          <p class="text-[15px] font-bold mt-1.5 px-0.5">
+            Mettre à jour vers {{ updates.update.version }}
+            <span class="text-[13px] text-muted font-medium">· {{ formatSize(updates.update.size) }}</span>
+          </p>
+          <AppUpdateAction />
+        </template>
+        <template v-else>
+          <button
+            type="button"
+            class="w-full flex items-center justify-between h-12 rounded-[14px] bg-field border border-field-border px-3.5 active:scale-[0.99] transition disabled:opacity-60"
+            :disabled="updates.status === 'checking'"
+            @click="updates.checkForUpdate({ force: true })"
+          >
+            <span class="text-[15px] font-medium">
+              {{ updates.status === "checking" ? "Recherche…" : "Rechercher une mise à jour" }}
+            </span>
+            <span class="flex items-center gap-2 text-sm font-semibold whitespace-nowrap" :class="updates.status === 'upToDate' ? 'text-ok' : 'text-sub'">
+              <template v-if="updates.status === 'upToDate'">À jour</template>
+              <RefreshCw :size="16" :class="updates.status === 'checking' ? 'animate-spin' : ''" />
+            </span>
+          </button>
+          <p v-if="updates.error" class="text-xs text-danger px-1" role="alert">
+            Impossible de vérifier les mises à jour. Réessaie plus tard.
+          </p>
+        </template>
+      </section>
+    </template>
 
     <!-- Reset -->
     <button

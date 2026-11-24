@@ -3,6 +3,13 @@ import { RouterView } from "vue-router";
 // Theme is initialised on import (applies [data-theme] to <html>).
 import "@/composables/useTheme";
 import ConfirmDialog from "@/components/ConfirmDialog.vue";
+import AppUpdateSheet from "@/components/update/AppUpdateSheet.vue";
+import { useAppUpdateStore } from "@/store/app-update-store";
+
+// Not awaited: a slow GitHub check must not delay startup.
+useAppUpdateStore()
+  .init()
+  .catch((error) => console.warn("[App] Update check failed:", error));
 
 // Notifications feature paused — the live SSE stream + native notifications are
 // disabled. Re-enable by restoring the block below (see chore/hide-notifications).
@@ -56,4 +63,5 @@ import ConfirmDialog from "@/components/ConfirmDialog.vue";
 <template>
   <RouterView />
   <ConfirmDialog />
+  <AppUpdateSheet />
 </template>
