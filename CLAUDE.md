@@ -3,18 +3,22 @@
 ## Overview
 
 App Android (Capacitor v8) cliente d'un homelab, en **Vue 3 + TypeScript**.
-Pilote Radarr / Sonarr / qBittorrent et affiche les stats Glances. Les services
-sont derrière un reverse proxy protégé par **Authelia**, mais l'app utilise
-l'**Option B** : Authelia est bypassé sur `/api` (règle serveur), donc l'app
-n'a besoin que des **clés API** — aucun login Authelia, aucun mot de passe
-stocké. Cible **Android uniquement**. Accent fort sur le **design front-end**.
+Pilote Radarr / Sonarr / qBittorrent / Jellyfin / Plex et affiche les stats
+Glances. Les domaines publics des services sont protégés par **tinyauth +
+PocketID** ; l'app ne passe **pas** par eux : elle joint chaque service en
+**HTTP local** (`http://192.168.1.19:<port>`), donc depuis le LAN ou **via le
+VPN**, avec l'authentification propre au service. Cible **Android uniquement**.
+Accent fort sur le **design front-end**.
 
 ## Conventions
 
 - **Package manager :** npm
 - **Build :** `npm run build` (avec types) ou `npm run build:skip-types` (rapide)
 - **Dev :** `npm run dev` (http://localhost:5173) ; typecheck `npm run typecheck`
-- **Android :** `npm run android:build` (APK debug — nécessite JDK 17/21 + SDK)
+- **Android :** `npm run android:build` (APK debug — nécessite JDK 17/21 + SDK),
+  re-signé avec la clé de release (`~/.config/homelab-signing/`) via
+  `scripts/sign-android-apk.sh`. Signature, rotation de clé, numéros de version
+  et mise à jour dans l'app : `docs/signature-et-mises-a-jour.md`.
 - **Alias imports :** `@/` → `src/`
 - **Styling :** Tailwind CSS v4 ; helper `cn()` (`src/lib/utils.ts`). Couleurs via
   les tokens design exposés en utilitaires (`bg-surface`, `text-sub`,
@@ -24,18 +28,28 @@ stocké. Cible **Android uniquement**. Accent fort sur le **design front-end**.
 - **Composants :** privilégier les primitives headless Reka UI.
 - **Icônes :** Lucide via `@lucide/vue`.
 - **State :** stores Pinia dans `src/store/` ; `persist` pour la config non
-  sensible. Secrets (identifiants Authelia, clés API) → `@capacitor/preferences`.
+  sensible (adresses des services…). Secrets (clés API, mots de passe, tokens
+  Plex/Jellyfin) → `@capacitor/preferences`.
 - **HTTP :** toujours passer par le wrapper `src/services/http.ts` (CapacitorHttp),
   jamais `fetch` — il injecte la base-URL + `X-Api-Key` et contourne CORS.
 - **Workflow design :** maquettes HTML dans `design-mockups/` validées **avant**
   de coder la vue Vue correspondante.
 
-## Auth (Option B — rappel)
+## Accès réseau (rappel)
 
-Authelia est bypassé sur `^/api/` côté serveur (voir `docs/authelia-bypass.md`) ;
-les endpoints restent protégés par la **clé API** du service. L'app envoie donc
-juste `X-Api-Key` (Radarr/Sonarr `/api/v3`). Pas de login Authelia, pas de mot
-de passe stocké. Images : `/api/v3/mediacover/...?apikey=<clé>`.
+Voir `docs/acces-reseau.md`. En bref :
+- Une **adresse complète par service** (`https://` par défaut, `http://` accepté).
+  Plus de domaine racine ni de sous-domaine.
+- Les domaines publics renvoient un 401 tinyauth (`x-tinyauth-location`) →
+  erreur `kind: "gate"`, message « Bloqué par tinyauth — VPN connecté ? ».
+  On n'ajoute **pas** d'exception tinyauth (Glances n'a aucune auth).
+- Auth par service : `X-Api-Key` (Radarr/Sonarr), aucune (Glances), login
+  facultatif ou proxy qui (qBittorrent), Quick Connect (Jellyfin), code
+  plex.tv/link + choix du serveur (Plex).
+- La WebView sert l'app en `http://localhost` (`androidScheme: "http"`) pour que
+  les pochettes `http://` ne soient pas bloquées en mixed content. Changer ce
+  schéma change l'origine et vide le stockage web.
+- Images : `/api/v3/mediacover/...?apikey=<clé>`.
 
 ## Roadmap
 

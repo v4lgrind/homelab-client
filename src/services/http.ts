@@ -16,8 +16,8 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
 
 /**
  * "gate": the reverse proxy's auth layer (tinyauth) refused the request before
- * it reached the service — a server-side bypass rule is missing, the key is
- * not the problem.
+ * it reached the service — the address is a public, tinyauth-protected domain
+ * rather than the LAN / VPN one. The key is not the problem.
  */
 export type HttpErrorKind = "auth" | "gate" | "notfound" | "network" | "server" | "unknown";
 

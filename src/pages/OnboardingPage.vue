@@ -33,8 +33,8 @@ function finish() {
     <p class="flex items-start gap-2 text-xs text-muted mt-4 mx-1 leading-snug">
       <ShieldCheck :size="15" class="shrink-0 mt-px" />
       <span>
-        Clés stockées chiffrées sur l'appareil. Nécessite la règle bypass Authelia sur
-        <code class="font-mono">/api</code>.
+        Clés stockées chiffrées sur l'appareil. Hors de chez toi, active le VPN pour
+        joindre les adresses locales.
       </span>
     </p>
 

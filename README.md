@@ -74,20 +74,20 @@ by default.
 
 ## How it connects
 
-Every service sits behind a reverse proxy protected by **Authelia**. Rather than
-teaching the app to log into Authelia, a `bypass` rule is sealed onto `^/api`:
-the endpoints stay protected by each service's **own credentials**, so the app
-never holds an Authelia master password that would unlock everything at once.
-Each service it can reach is one service, not the whole homelab. See
-[`docs/authelia-bypass.md`](docs/authelia-bypass.md).
+The services' public domains are protected by **tinyauth + PocketID**, and no
+exception is carved into it. The app does not go through them: it reaches each
+service **directly on the LAN** (`http://192.168.1.19:<port>`), so from home or
+**over the VPN**, with that service's **own credentials**. The app never holds a
+master login that would unlock the whole homelab. See
+[`docs/acces-reseau.md`](docs/acces-reseau.md).
 
 | Service | How the app authenticates |
 | --- | --- |
 | Radarr / Sonarr | API key (`X-Api-Key`) on `/api/v3` |
-| Glances | none — the API is reachable on its own subdomain |
-| qBittorrent | a **qui Client Proxy URL** that embeds its own key, or a direct username/password login |
+| Glances | none — reachable on the LAN / VPN only |
+| qBittorrent | a **qui Client Proxy URL** that embeds its own key, or direct access with an optional login (whitelisted subnet) |
 | Jellyfin | **Quick Connect** — the app shows a code, you approve it from a session already signed in |
-| Plex | Plex's own **PIN flow** on plex.tv; the server address then comes from plex.tv, not from you |
+| Plex | a short code typed at **plex.tv/link**, then you pick the server; its address comes from plex.tv |
 
 Every secret is stored with `@capacitor/preferences` and never leaves the device
 — they are kept out of persisted app state entirely.
@@ -203,5 +203,5 @@ android/              # Capacitor Android project
 assets/               # icon & splash sources (@capacitor/assets)
 design-mockups/       # HTML mockups, validated before implementation
 docker/               # reproducible APK build image
-docs/                 # server-side docs (Authelia bypass…)
+docs/                 # network access, specs and plans
 ```

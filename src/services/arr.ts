@@ -58,7 +58,8 @@ export function createArrClient(id: ServiceId, url: string, apiKey: string) {
    *  size rather than the full-resolution original.
    *
    *  Falls back to the public CDN when an item has no local cover yet (freshly
-   *  added, cover not downloaded). /api is Authelia-bypassed; the key authenticates. */
+   *  added, cover not downloaded). The app reaches the service directly (LAN / VPN);
+   *  the key authenticates. */
   function imagePath(
     images: ArrImage[] | undefined,
     mediaId: number,

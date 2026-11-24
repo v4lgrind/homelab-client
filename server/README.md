@@ -59,6 +59,8 @@ phases; for now every source works through the generic shape above.
 
 ## Behind the reverse proxy
 
-Put it on a subdomain (e.g. `hub.valgrind.cloud`) with an **Authelia bypass on
-`^/hook` and `^/api`** — the two tokens are the authentication there, the same
-Option B pattern the rest of the stack uses.
+The hub needs `^/hook` and `^/api` reachable without a browser login — its two
+tokens are the authentication. Behind tinyauth that means a `path.allow` limited
+to those two paths, or LAN / VPN-only access like the other services; to be
+decided when the (currently hidden) notifications feature comes back. See
+[`../docs/acces-reseau.md`](../docs/acces-reseau.md).

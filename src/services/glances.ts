@@ -63,7 +63,7 @@ function normalize(a: GlancesAll): GlancesStats {
 
 export function createGlancesClient(url: string) {
   const base = serviceBaseUrl("glances", url);
-  const http = new ServiceHttp(base, ""); // Glances API is bypassed — no key
+  const http = new ServiceHttp(base, ""); // Glances has no auth: LAN / VPN only
   let apiVer = 4;
 
   async function getAll(): Promise<GlancesAll> {
