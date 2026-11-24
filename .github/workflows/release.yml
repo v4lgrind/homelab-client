@@ -3,9 +3,11 @@ name: Release
 # Manual, versioned release: you give a version number, this builds the APK,
 # tags the commit, and publishes a GitHub release with the APK attached.
 #
-# The APK is debug-signed with the committed fixed keystore (same signature as
-# the nightly build), so it installs over an existing install without an
-# uninstall. versionCode is derived from semver so upgrades are monotonic.
+# The APK is a release build signed with the release key, rotated from the
+# legacy committed keystore so it installs over older builds and keeps their
+# data (see scripts/sign-android-apk.sh). versionCode comes from
+# .github/scripts/android-version.sh; the app's in-app updater
+# (src/services/app-update.ts) reads the same scheme from the tag.
 on:
   workflow_dispatch:
     inputs:
@@ -33,14 +35,10 @@ jobs:
         run: |
           V="${{ inputs.version }}"
           V="${V#v}"                       # tolerate a leading "v"
-          if ! [[ "$V" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            echo "::error::Version invalide '$V' — attendu MAJOR.MINOR.PATCH (ex. 1.0.0)"
-            exit 1
-          fi
-          IFS=. read -r MA MI PA <<< "$V"
-          CODE=$(( MA * 10000 + MI * 100 + PA ))
+          # Validates MAJOR.MINOR.PATCH (MINOR, PATCH <= 99) and exports
+          # ANDROID_VERSION_CODE / ANDROID_VERSION_NAME, read by build.gradle.
+          .github/scripts/android-version.sh release "$V" | tee -a "$GITHUB_ENV"
           echo "version=$V"       >> "$GITHUB_OUTPUT"
-          echo "code=$CODE"       >> "$GITHUB_OUTPUT"
           echo "tag=v$V"          >> "$GITHUB_OUTPUT"
 
       - name: Fail if tag already exists
@@ -72,12 +70,6 @@ jobs:
       - name: Setup Gradle cache
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Apply version to build.gradle
-        run: |
-          sed -i "s/versionCode [0-9]\+/versionCode ${{ steps.ver.outputs.code }}/" android/app/build.gradle
-          sed -i "s/versionName \"[^\"]*\"/versionName \"${{ steps.ver.outputs.version }}\"/" android/app/build.gradle
-          grep -nE "versionCode|versionName" android/app/build.gradle
-
       - name: Install dependencies
         run: npm ci
 
@@ -87,15 +79,24 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Build release APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
+
+      - name: Sign APK with the release key
+        env:
+          KEYSTORE_B64: ${{ secrets.HOMELAB_SIGNING_KEYSTORE_B64 }}
+          HOMELAB_SIGNING_PASSWORD: ${{ secrets.HOMELAB_SIGNING_PASSWORD }}
+        run: |
+          export HOMELAB_SIGNING_KEYSTORE="$RUNNER_TEMP/homelab-release.p12"
+          echo "$KEYSTORE_B64" | base64 -d > "$HOMELAB_SIGNING_KEYSTORE"
+          scripts/sign-android-apk.sh --require android/app/build/outputs/apk/release/app-release.apk
 
       - name: Rename APK
         run: |
-          cp android/app/build/outputs/apk/debug/app-debug.apk \
+          cp android/app/build/outputs/apk/release/app-release.apk \
              "homelab-${{ steps.ver.outputs.tag }}.apk"
 
       - name: Create release

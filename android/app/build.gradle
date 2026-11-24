@@ -7,8 +7,13 @@ android {
         applicationId "com.v4lgrind.homelab"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        // CI passes ANDROID_VERSION_CODE / ANDROID_VERSION_NAME from
+        // .github/scripts/android-version.sh. Local builds get 1 / "dev"
+        // unless they pass a code above the build installed on the device.
+        def explicitVersionCode = System.getenv("ANDROID_VERSION_CODE")
+        versionCode explicitVersionCode ? explicitVersionCode.toInteger() : 1
+        // Shown in Settings; the release workflow passes the tag version.
+        versionName System.getenv("ANDROID_VERSION_NAME") ?: "dev"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -33,6 +38,9 @@ android {
             signingConfig signingConfigs.debug
         }
         release {
+            // Signed with the legacy key here; scripts/sign-android-apk.sh then
+            // adds the rotated release key (APK Signature Scheme v3).
+            signingConfig signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }

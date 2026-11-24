@@ -15,6 +15,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # android-version.sh counts the commits since the last release tag.
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -45,11 +48,23 @@ jobs:
       - name: Sync Capacitor
         run: npx cap sync android
 
-      - name: Build debug APK
+      - name: Compute nightly version
+        run: .github/scripts/android-version.sh nightly | tee -a "$GITHUB_ENV"
+
+      - name: Build release APK
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew assembleRelease
+
+      - name: Sign APK with the release key
+        env:
+          KEYSTORE_B64: ${{ secrets.HOMELAB_SIGNING_KEYSTORE_B64 }}
+          HOMELAB_SIGNING_PASSWORD: ${{ secrets.HOMELAB_SIGNING_PASSWORD }}
+        run: |
+          export HOMELAB_SIGNING_KEYSTORE="$RUNNER_TEMP/homelab-release.p12"
+          echo "$KEYSTORE_B64" | base64 -d > "$HOMELAB_SIGNING_KEYSTORE"
+          scripts/sign-android-apk.sh --require android/app/build/outputs/apk/release/app-release.apk
 
       # Publish a "nightly" prerelease so the APK is downloadable straight to a
       # phone. Only on the real main branch (skipped for manual runs elsewhere).
@@ -66,7 +81,7 @@ jobs:
             --notes "Build automatique de \`main\` — commit ${{ github.sha }}" \
             --prerelease \
             --target "${{ github.sha }}" \
-            android/app/build/outputs/apk/debug/app-debug.apk
+            android/app/build/outputs/apk/release/app-release.apk
 
       - name: Prune old nightly releases
         if: github.ref == 'refs/heads/main'
