@@ -1,207 +1,234 @@
 # Homelab Client
 
-**A polished Android client for your homelab.** Browse your media library, drive
-your downloads and watch your server — from one app, on your phone, over your
-own domain.
+**A polished Android client for your homelab.** Browse your media library,
+drive your downloads, see who is streaming and keep an eye on the server, all
+from one app on your phone.
 
-No cloud account. No third party. The app talks straight to the services you
-already run.
+No cloud account, no telemetry, no middleman: the app talks straight to the
+services you already run.
 
-📦 [**Download the latest APK**](../../releases/latest) · rolling dev build: [`nightly`](../../releases/tag/nightly)
+[![Latest release](https://img.shields.io/github/v/release/v4lgrind/homelab-client?label=release)](../../releases/latest)
+[![Android 7.0+](https://img.shields.io/badge/Android-7.0%2B-3DDC84?logo=android&logoColor=white)](#install)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
+
+<p align="center">
+  <img src="docs/screenshots/library-dark.webp" width="250" alt="Library: poster grid of movies">
+  <img src="docs/screenshots/detail-dark.webp" width="250" alt="Title detail with artwork, quality and monitoring toggle">
+  <img src="docs/screenshots/streams-dark.webp" width="250" alt="Server tab: who is streaming on Jellyfin and Plex">
+</p>
+
+📦 [**Download the latest APK**](../../releases/latest)
+
+> The interface is in **French** for now.
 
 ---
 
-## What it does
+## Supported services
+
+| Service | What you get |
+| --- | --- |
+| **Radarr** · **Sonarr** | Library, title details, search & add, interactive release search, queue, history, calendar |
+| **qBittorrent** | Torrent list and control, directly or through [qui](https://getqui.com)'s Client Proxy |
+| **Jellyfin** · **Plex** | Live sessions: who is watching what, on which device, transcoding or not |
+| **Glances** | CPU, memory, load, disks and network of the box |
+| **Proxmox VE** | Node usage, VMs and containers, storage (read-only) |
+
+Every service is optional: configure the ones you run, the rest stay hidden.
+
+---
+
+## Features
 
 ### 📚 Your library, at a glance
 
 A poster grid of everything Radarr and Sonarr know about. Switch between movies
 and series, filter down to what's **missing** or **monitored**, and sort by
-title, date added, year or size. Built to stay smooth with a library of
-thousands of titles.
+title, date added, year or size. Built to stay smooth with thousands of titles.
+The **Search** tab finds new movies and series and adds them to Radarr or Sonarr.
+
+<p align="center">
+  <img src="docs/screenshots/library-dark.webp" width="220" alt="Library, dark theme">
+  <img src="docs/screenshots/library-light.webp" width="220" alt="Library, light theme">
+</p>
 
 ### 🎬 Every title, in detail
 
-Open any title for its artwork, synopsis and genres. From there you can toggle
-**monitoring**, kick off a **search**, or delete it — with or without its files.
+Artwork, synopsis, genres, quality and size. Toggle **monitoring**, start a
+**search**, or delete the title, with or without its files.
+
+<p align="center">
+  <img src="docs/screenshots/detail-dark.webp" width="220" alt="Title detail, dark theme">
+  <img src="docs/screenshots/detail-light.webp" width="220" alt="Title detail, light theme">
+</p>
 
 ### 🔎 Pick your own release
 
-Not happy with what was grabbed? Run an **interactive search**: the app queries
-your indexers and lays out the releases so you can choose exactly which one to
-grab.
+Run an **interactive search**: the app queries your indexers and lists every
+release with its quality, size, seeders and age, plus the reasons Radarr or
+Sonarr would reject it. Tap one to grab exactly that release.
+
+<p align="center">
+  <img src="docs/screenshots/search-dark.webp" width="220" alt="Interactive search, dark theme">
+  <img src="docs/screenshots/search-light.webp" width="220" alt="Interactive search, light theme">
+</p>
 
 ### ⏳ Activity
 
-Watch the download queue live — progress, speed, ETA — and scan what landed
-recently.
+The download queue live (progress, speed, ETA), blocked imports you can
+resolve from the phone, and what landed recently.
+
+<p align="center">
+  <img src="docs/screenshots/activity-dark.webp" width="220" alt="Activity, dark theme">
+  <img src="docs/screenshots/activity-light.webp" width="220" alt="Activity, light theme">
+</p>
 
 ### 📅 Calendar
 
-See what's coming, in an agenda list or a month view, so you know what lands
-this week.
+Upcoming episodes and releases, as an agenda list or a month view.
+
+<p align="center">
+  <img src="docs/screenshots/calendar-dark.webp" width="220" alt="Calendar month view, dark theme">
+  <img src="docs/screenshots/calendar-light.webp" width="220" alt="Calendar month view, light theme">
+</p>
 
 ### 🧲 Torrents
 
-Full qBittorrent control, either through **[qui](https://getqui.com)'s Client
-Proxy** — no credentials shared with the app — or connected **directly** to a
-plain qBittorrent. List and filter your torrents, add magnets, pause, resume,
-force-resume, re-categorise or delete. Transfer speeds update live.
+Full qBittorrent control. List and filter your torrents, add magnets, pause,
+resume, force-resume, change category or delete. Transfer speeds update live.
+Connect through **qui's Client Proxy** (no qBittorrent credentials on the
+phone) or **directly** to qBittorrent.
 
-### 📺 Media servers
+<p align="center">
+  <img src="docs/screenshots/torrents-dark.webp" width="220" alt="Torrents, dark theme">
+  <img src="docs/screenshots/torrents-light.webp" width="220" alt="Torrents, light theme">
+</p>
 
-See who is watching, right now, across **Jellyfin** and **Plex** at once: user,
-device, what they are playing, how far in, and whether the box is transcoding for
-them. Sign-in never handles a password — Jellyfin uses **Quick Connect**, Plex
-its own sign-in page — and your Plex server is discovered automatically.
+### 📺 Who is watching
 
-### 📊 Server stats
+Every active session across **Jellyfin** and **Plex** at once: user, device,
+title, progress, bitrate, and whether the server is transcoding.
 
-A Glances dashboard for the box itself: CPU, memory, load, disks and network —
-sitting right under the streams that explain the load.
+<p align="center">
+  <img src="docs/screenshots/streams-dark.webp" width="220" alt="Active streams, dark theme">
+  <img src="docs/screenshots/streams-light.webp" width="220" alt="Active streams, light theme">
+</p>
+
+### 📊 The server itself
+
+Right under the streams that explain the load: a **Glances** view of the
+machine (CPU, memory, load, disks, network) and a **Proxmox** view of the node,
+its VMs and containers, and its storage.
+
+<p align="center">
+  <img src="docs/screenshots/server-dark.webp" width="220" alt="Proxmox node, VMs and storage, dark theme">
+  <img src="docs/screenshots/server-light.webp" width="220" alt="Proxmox node, VMs and storage, light theme">
+</p>
+
+### 🔄 Updates built in
+
+The app checks this repository's releases and offers new versions itself:
+download, verify and hand over to the Android installer, with the release
+notes shown in the app.
+
+---
+
+## Install
+
+1. Download `homelab-vX.Y.Z.apk` from the [latest release](../../releases/latest).
+2. Open it on your phone and allow installing apps from that source when
+   Android asks.
+3. Launch **Homelab** and add the address of each service you run.
+
+Requires **Android 7.0** or later. Later updates are offered inside the app.
+
+---
+
+## Connecting your services
+
+Give the app **one full address per service**, the same one you would type in
+a browser. `https://` is the default; plain `http://` is accepted for
+addresses on your LAN.
+
+| Service | How the app signs in |
+| --- | --- |
+| Radarr / Sonarr | API key (Settings → General in Radarr/Sonarr) |
+| qBittorrent | a **qui Client Proxy URL**, which embeds its own key, or a direct address with an optional login |
+| Jellyfin | **Quick Connect**: the app shows a code, you approve it from a session already signed in |
+| Plex | a short code entered at **plex.tv/link**, then you pick your server |
+| Glances | none |
+| Proxmox VE | a username and password, ideally a read-only user with the `PVEAuditor` role; the node's self-signed certificate is pinned when you first accept it |
+
+### Behind a login portal?
+
+If your services sit behind a forward-auth portal (Authelia, Authentik,
+tinyauth…), the app cannot get through it: point it at addresses that skip the
+portal, such as LAN addresses (`http://192.168.1.10:7878`), reached at home or
+**over your VPN** (WireGuard, Tailscale…). With tinyauth, the app recognises
+the portal's answer and tells you to connect your VPN instead of failing with
+a vague error.
+
+This is also the safer layout: the portal keeps protecting the public domains,
+and the phone only ever holds each service's own credentials, never a master
+login to the whole homelab.
+
+### Your data stays on the phone
+
+- API keys, passwords and tokens are stored with Android's app-private
+  storage (`@capacitor/preferences`), never in the app's regular state.
+- Posters come from your own Radarr/Sonarr, not from a third-party image CDN.
+- The only outside services contacted are **plex.tv** (if you use Plex) and
+  **GitHub** (to check for app updates).
 
 ---
 
 ## Design
 
-The interface follows a house design language — **"Direction OLED"**: true-black
+The interface follows its own design language, **"Direction OLED"**: true-black
 surfaces, a single blue accent, the Outfit typeface and a floating navigation
-bar. Light, dark and auto themes all ship. Every screen is designed as a static
-mockup before it is built, so the app is drawn on purpose rather than assembled
-by default.
-
----
-
-## How it connects
-
-The services' public domains are protected by **tinyauth + PocketID**, and no
-exception is carved into it. The app does not go through them: it reaches each
-service **directly on the LAN** (`http://192.168.1.19:<port>`), so from home or
-**over the VPN**, with that service's **own credentials**. The app never holds a
-master login that would unlock the whole homelab. See
-[`docs/acces-reseau.md`](docs/acces-reseau.md).
-
-| Service | How the app authenticates |
-| --- | --- |
-| Radarr / Sonarr | API key (`X-Api-Key`) on `/api/v3` |
-| Glances | none — reachable on the LAN / VPN only |
-| qBittorrent | a **qui Client Proxy URL** that embeds its own key, or direct access with an optional login (whitelisted subnet) |
-| Jellyfin | **Quick Connect** — the app shows a code, you approve it from a session already signed in |
-| Plex | a short code typed at **plex.tv/link**, then you pick the server; its address comes from plex.tv |
-
-Every secret is stored with `@capacitor/preferences` and never leaves the device
-— they are kept out of persisted app state entirely.
-
----
+bar. Light, dark and auto themes all ship. Every screen starts as a static HTML
+mockup ([`design-mockups/`](design-mockups/)) and is built only once the mockup
+is approved.
 
 ## Built to feel fast
 
-Performance is treated as a feature, and measured on a real device rather than
-guessed:
+Performance is measured on a real device, not guessed:
 
-- **Instant launch.** The library renders from cache immediately, then
-  revalidates in the background. Cold start shows a full grid with no spinner.
-- **Covers at the right size.** Artwork is served by your own Radarr/Sonarr at
-  display resolution instead of full-resolution originals — ~28× less data per
-  poster, and nothing about your library leaks to a third-party CDN.
+- **Instant launch.** The library renders from cache, then refreshes in the
+  background. A cold start shows a full grid, no spinner.
+- **Covers at the right size.** Artwork is requested from Radarr/Sonarr at
+  display resolution instead of full-size originals: about 28× less data per
+  poster.
 - **Smooth scrolling.** Off-screen cards skip layout and paint, keeping frame
   times low on lists of thousands of items.
 
 ---
 
-## Stack
-
-- **Frontend** — Vue 3, TypeScript, Vite
-- **Mobile** — Capacitor v8 (Android only)
-- **State** — Pinia + `pinia-plugin-persistedstate`
-- **UI** — Reka UI (headless), Tailwind CSS v4, Lucide icons
-- **Networking** — `CapacitorHttp`, the native network layer (no CORS, native cookie jar)
-
----
-
-## Build it yourself
-
-### With Docker — nothing else required
-
-A reproducible image bundles JDK 21, Node 22 and the Android SDK:
+## Build from source
 
 ```bash
-./docker/build-apk.sh          # debug APK
-./docker/build-apk.sh release  # release APK
+./docker/build-apk.sh   # reproducible build: JDK 21, Node 22 and the Android SDK in a container
 ```
 
-The APK lands in `android/app/build/outputs/apk/debug/`.
-
-### Locally, with JDK 21 + Android SDK
+or, with JDK 21 and the Android SDK installed:
 
 ```bash
 npm install
 npm run android:build
 ```
 
-### Develop
+The APK lands in `android/app/build/outputs/apk/debug/`. Development setup,
+signing, CI and releases are covered in
+[`docs/development.md`](docs/development.md).
 
-```bash
-npm run dev          # http://localhost:5173
-npm run typecheck
-```
-
-Copy `.env.example` to `.env` and fill in your service URLs: a Vite proxy makes
-them same-origin in the browser so you can develop against the real thing. On
-device, `CapacitorHttp` talks to them directly.
-
-Screen mockups live in [`design-mockups/`](design-mockups/) and are validated
-before the matching Vue view is written.
-
-### Signing
-
-Debug builds are signed with a **fixed, committed keystore**
-(`android/app/debug.keystore` — a debug key is not a secret). Every build, local
-or CI, therefore shares one signature: a new APK installs straight over the
-previous one, no uninstall dance.
+**Stack:** Vue 3 · TypeScript · Vite · Capacitor 8 (Android) · Pinia ·
+Reka UI · Tailwind CSS 4 · Lucide icons.
 
 ---
 
-## Releases
+## License
 
-| Workflow | Trigger | What it does |
-| --- | --- | --- |
-| `pr-check.yml` | every PR | Type-checks, builds the web app and the APK. Nothing is kept — it is a merge gate. |
-| `android-build.yml` | push to `main` | Builds and publishes the rolling `nightly` prerelease. |
-| `release.yml` | manual | Give it a version — it tags, builds and publishes the release. |
+[MIT](LICENSE).
 
-```bash
-gh workflow run release.yml -f version=1.1.0
-```
-
-The version drives `versionName` and a `versionCode` derived from semver, so
-upgrades stay monotonic.
-
----
-
-## Roadmap
-
-A **notifications hub** is next: a self-hosted webhook receiver that collects
-events from across the homelab — grabs, imports, uptime alerts — and surfaces
-them in the app.
-
----
-
-## Layout
-
-```
-src/
-├── assets/main.css   # design tokens + Tailwind
-├── components/       # BrandHeader, BottomNav, PosterCard, ServiceCard…
-├── composables/      # useTheme
-├── pages/            # routed screens
-├── services/         # API clients: http, arr, glances, qbittorrent
-├── store/            # Pinia stores
-└── types/
-
-android/              # Capacitor Android project
-assets/               # icon & splash sources (@capacitor/assets)
-design-mockups/       # HTML mockups, validated before implementation
-docker/               # reproducible APK build image
-docs/                 # network access, specs and plans
-```
+Homelab Client is an independent project, not affiliated with Radarr, Sonarr,
+qBittorrent, qui, Jellyfin, Plex, Glances or Proxmox. Their names belong to
+their respective owners.
