@@ -1,4 +1,4 @@
-export type ServiceId = "radarr" | "sonarr" | "qbittorrent" | "glances" | "jellyfin" | "plex";
+export type ServiceId = "radarr" | "sonarr" | "qbittorrent" | "glances" | "jellyfin" | "plex" | "proxmox";
 
 export type ServiceStatus = "idle" | "testing" | "ok" | "error";
 
@@ -38,6 +38,13 @@ export interface ServiceState {
   /** Plex: clientIdentifier of the server the user picked (the account may
    *  see several, its own and shared ones). */
   serverId?: string;
+  /**
+   * Proxmox: SHA-256 of its self-signed certificate ("AB:CD:…"), pinned on
+   * first contact. Not a secret, so persisted with the rest of the config.
+   */
+  certSha256?: string;
+  /** Proxmox: the address certSha256 was pinned for; another address is trusted afresh. */
+  certUrl?: string;
   /** Server name reported by the service (Jellyfin/Plex). */
   serverName?: string;
   status: ServiceStatus;

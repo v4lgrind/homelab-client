@@ -1,16 +1,24 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from "vue";
+import { computed, onMounted, onUnmounted, watch } from "vue";
+import { useStorage } from "@vueuse/core";
 import { useRouter } from "vue-router";
-import { RefreshCw, LoaderCircle, AlertCircle, ArrowDown, ArrowUp, HardDrive } from "@lucide/vue";
+import { RefreshCw, LoaderCircle, AlertCircle, ArrowDown, ArrowUp, HardDrive, Monitor, Server } from "@lucide/vue";
 import BottomNav from "@/components/BottomNav.vue";
 import SessionCard from "@/components/SessionCard.vue";
 import ServiceLogo from "@/components/ServiceLogo.vue";
+import ProxmoxPanel from "@/components/proxmox/ProxmoxPanel.vue";
+import { STORAGE_KEYS } from "@/constants";
+import { useConnectionStore } from "@/store/connection-store";
 import { useGlancesStore } from "@/store/glances-store";
+import { useProxmoxStore } from "@/store/proxmox-store";
 import { useMediaServersStore } from "@/store/mediaservers-store";
 import { formatSize, formatRate } from "@/lib/format";
+import { RING, dashOffset, sparkPoints, threshColor } from "@/lib/gauge";
 
 const router = useRouter();
+const conn = useConnectionStore();
 const g = useGlancesStore();
+const pve = useProxmoxStore();
 const ms = useMediaServersStore();
 let timer: ReturnType<typeof setInterval> | undefined;
 let mediaTimer: ReturnType<typeof setInterval> | undefined;
@@ -22,27 +30,6 @@ function streamCount(server: "jellyfin" | "plex"): number {
   return ms.sessions.filter((s) => s.server === server).length;
 }
 
-const RING = 2 * Math.PI * 50; // circumference for r=50
-
-function threshColor(pct: number): string {
-  return pct >= 90 ? "var(--danger)" : pct >= 70 ? "var(--warn)" : "var(--accent)";
-}
-function dashOffset(pct: number): string {
-  return (RING * (1 - Math.min(100, Math.max(0, pct)) / 100)).toFixed(1);
-}
-function sparkPoints(vals: number[], w = 120, h = 26): string {
-  if (!vals.length) return "";
-  const pad = 2;
-  const H = h - pad * 2;
-  if (vals.length === 1) {
-    const y = (pad + H - (Math.min(100, vals[0]) / 100) * H).toFixed(1);
-    return `0,${y} ${w},${y}`;
-  }
-  const step = w / (vals.length - 1);
-  return vals
-    .map((v, i) => `${(i * step).toFixed(1)},${(pad + H - (Math.min(100, v) / 100) * H).toFixed(1)}`)
-    .join(" ");
-}
 function tempColor(v: number): string {
   return v >= 85 ? "var(--danger)" : v >= 70 ? "var(--warn)" : "var(--text)";
 }
@@ -54,16 +41,43 @@ const uptime = computed(() => {
 });
 const topNet = computed(() => g.stats?.net[0]);
 
+type StatsTab = "machine" | "proxmox";
+const glancesOn = computed(() => !!conn.urlOf("glances"));
+const proxmoxOn = computed(
+  () => !!conn.urlOf("proxmox") && !!conn.services.proxmox?.username?.trim() && !!conn.passwords.proxmox,
+);
+/** Machine / Proxmox picker: only offered when both are set up. */
+const showTabs = computed(() => glancesOn.value && proxmoxOn.value);
+const pickedTab = useStorage<StatsTab>(STORAGE_KEYS.statsTab, "machine");
+const tab = computed<StatsTab>(() =>
+  showTabs.value ? pickedTab.value : proxmoxOn.value && !glancesOn.value ? "proxmox" : "machine",
+);
+
+/** Refreshes the visible tab only: Glances every 3 s, Proxmox every 5 s. */
+function startPolling() {
+  if (timer) clearInterval(timer);
+  timer =
+    tab.value === "proxmox" ? setInterval(() => pve.fetch(), 5000) : setInterval(() => g.fetch(), 3000);
+}
+
 function load(force = false) {
-  g.fetch(force);
+  if (tab.value === "proxmox") pve.fetch(force);
+  else g.fetch(force);
   if (ms.anyConfigured) ms.fetchAll();
 }
 
-const refreshing = computed(() => g.state === "loading" || ms.loading);
+const refreshing = computed(
+  () => (tab.value === "proxmox" ? pve.state === "loading" : g.state === "loading") || ms.loading,
+);
+
+watch(tab, () => {
+  load(true);
+  startPolling();
+});
 
 onMounted(() => {
   load(true);
-  timer = setInterval(() => g.fetch(), 3000);
+  startPolling();
   // Sessions move far slower than CPU: polling two media servers every 3s would
   // be wasteful for a progress bar that advances a pixel.
   mediaTimer = setInterval(() => ms.anyConfigured && ms.fetchAll(), 8000);
@@ -80,7 +94,7 @@ onUnmounted(() => {
     <header class="flex items-start justify-between mb-4">
       <div class="min-w-0">
         <h1 class="text-[26px] font-bold -tracking-[0.02em]">Serveur</h1>
-        <p v-if="g.stats" class="text-xs text-sub flex items-center gap-1.5 flex-wrap mt-0.5">
+        <p v-if="tab === 'machine' && g.stats" class="text-xs text-sub flex items-center gap-1.5 flex-wrap mt-0.5">
           <span v-if="g.stats.hostname">{{ g.stats.hostname }}</span>
           <span v-if="g.stats.os" class="size-[3px] rounded-full bg-muted" />
           <span v-if="g.stats.os">{{ g.stats.os }}</span>
@@ -132,8 +146,41 @@ onUnmounted(() => {
         </div>
       </template>
 
-      <p class="text-xs font-bold tracking-[0.1em] uppercase text-muted mt-5 mb-2.5">Machine</p>
+      <p v-if="!showTabs" class="text-xs font-bold tracking-[0.1em] uppercase text-muted mt-5 mb-2.5">
+        {{ tab === "proxmox" ? "Proxmox" : "Machine" }}
+      </p>
     </template>
+
+    <!-- Machine (Glances) / Proxmox -->
+    <div
+      v-if="showTabs"
+      data-test="stats-tabs"
+      role="tablist"
+      class="flex gap-1 p-1 rounded-[14px] bg-surface border border-border mb-3.5"
+      :class="ms.anyConfigured ? 'mt-5' : ''"
+    >
+      <button
+        v-for="t in [
+          { id: 'machine', label: 'Machine', icon: Monitor },
+          { id: 'proxmox', label: 'Proxmox', icon: Server },
+        ] as const"
+        :key="t.id"
+        type="button"
+        role="tab"
+        :data-test="`tab-${t.id}`"
+        :aria-selected="tab === t.id"
+        class="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-[10px] text-[13px] font-semibold transition"
+        :class="tab === t.id ? 'bg-accent text-accent-ink' : 'text-sub'"
+        @click="pickedTab = t.id"
+      >
+        <component :is="t.icon" :size="15" />
+        {{ t.label }}
+      </button>
+    </div>
+
+    <ProxmoxPanel v-if="tab === 'proxmox'" @retry="load(true)" />
+
+    <template v-else>
 
     <!-- loading -->
     <div
@@ -261,6 +308,8 @@ onUnmounted(() => {
           </div>
         </div>
       </template>
+    </template>
+
     </template>
 
     <BottomNav />

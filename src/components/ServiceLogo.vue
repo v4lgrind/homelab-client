@@ -7,6 +7,7 @@ import QbittorrentLogo from "@/components/logos/QbittorrentLogo.vue";
 import GlancesLogo from "@/components/logos/GlancesLogo.vue";
 import JellyfinLogo from "@/components/logos/JellyfinLogo.vue";
 import PlexLogo from "@/components/logos/PlexLogo.vue";
+import ProxmoxLogo from "@/components/logos/ProxmoxLogo.vue";
 
 const props = withDefaults(defineProps<{ id: ServiceId; size?: number }>(), { size: 40 });
 
@@ -17,6 +18,7 @@ const LOGOS: Record<ServiceId, Component> = {
   glances: GlancesLogo,
   jellyfin: JellyfinLogo,
   plex: PlexLogo,
+  proxmox: ProxmoxLogo,
 };
 
 const logo = computed(() => LOGOS[props.id]);

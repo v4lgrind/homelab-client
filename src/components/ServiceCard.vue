@@ -14,11 +14,13 @@ import {
   LoaderCircle,
   Eye,
   EyeOff,
+  ShieldCheck,
 } from "@lucide/vue";
 import { AUTH_LABELS, SERVICES } from "@/constants";
 import type { AuthType, ServiceId } from "@/types/service";
 import { useConnectionStore } from "@/store/connection-store";
 import ServiceLogo from "@/components/ServiceLogo.vue";
+import { shortFingerprint } from "@/lib/format";
 
 const props = defineProps<{ id: ServiceId }>();
 
@@ -169,7 +171,7 @@ async function disconnect() {
         <input
           v-model="address"
           class="flex-1 min-w-0 bg-transparent outline-none text-[14px]"
-          :placeholder="`https://${meta.defaultSubdomain || 'service'}.domaine.com`"
+          :placeholder="id === 'proxmox' ? 'https://192.168.1.10:8006' : `https://${meta.defaultSubdomain || 'service'}.domaine.com`"
           inputmode="url"
           autocapitalize="none"
           autocorrect="off"
@@ -193,7 +195,7 @@ async function disconnect() {
         <input
           v-model="username"
           class="flex-1 min-w-0 bg-transparent outline-none text-[15px]"
-          :placeholder="id === 'qbittorrent' ? 'Identifiant (facultatif)' : 'Identifiant'"
+          :placeholder="id === 'qbittorrent' ? 'Identifiant (facultatif)' : id === 'proxmox' ? 'Utilisateur@royaume (ex. root@pam)' : 'Identifiant'"
           autocapitalize="none"
           autocorrect="off"
           spellcheck="false"
@@ -215,6 +217,24 @@ async function disconnect() {
         </button>
       </div>
     </template>
+
+    <p v-if="id === 'proxmox'" class="text-[11.5px] text-muted px-1 -mt-1 leading-snug">
+      Identifiant avec son royaume : <b class="text-sub font-semibold">root@pam</b> (compte Linux) ou
+      <b class="text-sub font-semibold">utilisateur@pve</b>. Un compte dédié en lecture seule (rôle PVEAuditor) suffit.
+    </p>
+
+    <!-- Proxmox: the self-signed certificate pinned on first contact, to compare
+         with Node → System → Certificates in the Proxmox GUI. -->
+    <div
+      v-if="id === 'proxmox' && svc.certSha256"
+      class="flex items-start gap-2 rounded-[14px] bg-field border border-field-border px-3 py-2.5 text-xs text-sub leading-snug"
+    >
+      <ShieldCheck :size="15" class="text-ok shrink-0 mt-px" />
+      <div class="min-w-0">
+        <p class="font-semibold text-text">Certificat auto-signé mémorisé</p>
+        <p class="font-mono text-[12px] truncate" :title="svc.certSha256">SHA-256 {{ shortFingerprint(svc.certSha256) }}</p>
+      </div>
+    </div>
 
     <!-- api key (only for services authenticated by key) -->
     <div v-if="auth === 'apikey'" class="flex items-center gap-2 h-11 rounded-[14px] bg-field border border-field-border px-3">
@@ -360,7 +380,7 @@ async function disconnect() {
         @click="test"
       >
         <Check :size="14" :stroke-width="2.6" />
-        Testé{{ svc.version ? ` · v${svc.version}` : "" }}
+        Testé{{ svc.version ? ` · ${id === "proxmox" ? "PVE " : "v"}${svc.version}` : "" }}
       </button>
 
       <button

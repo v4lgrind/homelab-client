@@ -30,6 +30,8 @@ export const STORAGE_KEYS = {
   addDefaultsPrefix: "homelab_add_defaults_",
   /** Bearer token the app presents to the notifications hub. */
   hubToken: "homelab_hub_token",
+  /** Stats page: last tab picked, "machine" (Glances) or "proxmox". */
+  statsTab: "homelab_stats_tab",
 } as const;
 
 export type ThemeMode = "auto" | "light" | "dark";
@@ -88,6 +90,8 @@ export const SERVICES: ServiceMeta[] = [
   },
   // Plex needs no subdomain: plex.tv hands us the server address after sign-in.
   { id: "plex", name: "Plex", desc: "Serveur média", defaultSubdomain: "", authType: "plexauth", available: true },
+  // Reached by its LAN IP over self-signed HTTPS (services/pinned-transport.ts).
+  { id: "proxmox", name: "Proxmox", desc: "Hyperviseur", defaultSubdomain: "", authType: "userpass", available: true },
 ];
 
 /** Identifies this app to Jellyfin/Plex. Jellyfin rejects Quick Connect without it. */
