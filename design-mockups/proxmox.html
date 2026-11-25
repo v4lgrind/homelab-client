@@ -1,0 +1,395 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Homelab · Maquette Proxmox</title>
+<style>
+:root, [data-theme="dark"] {
+  --bg:#000; --surface:#121417; --surface-2:#1a1e23; --chip-bg:#16191e;
+  --surface-text:#c7ced6; --text:#fff; --sub:#9aa3ad; --muted:#6b7280;
+  --accent:#2f9bff; --accent-ink:#04121f; --ok:#34d399; --warn:#fbbf24; --danger:#f87171;
+  --track:#22262c; --border:rgba(255,255,255,.08); --field:#0e1013; --field-border:rgba(255,255,255,.10);
+  --scrim:rgba(0,0,0,.62); --sheet:#121417;
+}
+[data-theme="light"] {
+  --bg:#eef1f5; --surface:#fff; --surface-2:#f4f6f9; --chip-bg:#e7ebf1;
+  --surface-text:#46505e; --text:#0b1220; --sub:#5a6573; --muted:#9aa1ab;
+  --accent:#1f6fe0; --accent-ink:#fff; --ok:#059669; --warn:#d97706; --danger:#dc2626;
+  --track:#e3e7ec; --border:rgba(0,0,0,.07); --field:#f4f6f9; --field-border:rgba(0,0,0,.10);
+  --scrim:rgba(11,18,32,.38); --sheet:#fff;
+}
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{font-family:'Outfit Variable','Outfit',system-ui,sans-serif;background:#e7e5df;min-height:100vh;
+  display:flex;flex-direction:column;align-items:center;padding:40px 16px 64px;gap:22px;}
+::-webkit-scrollbar{height:0;width:0;}
+.mock-head{width:100%;max-width:1660px;display:flex;align-items:flex-end;justify-content:space-between;gap:32px;flex-wrap:wrap;}
+.mock-eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#6b665d;font-weight:600;margin-bottom:8px;}
+.mock-title{font-size:26px;line-height:1.15;margin:0;color:#1c1a17;font-weight:700;letter-spacing:-.02em;}
+.mock-toggle{display:flex;gap:4px;padding:4px;border-radius:13px;background:#dcd8cd;border:1px solid #cfc9bb;flex:none;}
+.mock-toggle button{padding:9px 16px;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;border:none;font-family:inherit;background:transparent;color:#4f4b44;transition:all .15s;}
+.mock-toggle button[data-active="true"]{background:#1c1a17;color:#f4f1ea;}
+.gallery{display:flex;gap:34px;flex-wrap:wrap;justify-content:center;}
+.frame-label{text-align:center;font-size:13px;color:#5f5a50;font-weight:600;margin-top:12px;letter-spacing:.02em;}
+.ann{font-size:12.5px;color:#5f5a50;max-width:380px;margin:8px auto 0;line-height:1.45;text-align:center;}
+.phone{position:relative;width:380px;height:812px;border-radius:46px;overflow:hidden;background:var(--bg);
+  box-shadow:0 36px 80px -28px rgba(0,0,0,.5),0 0 0 11px #0a0a0a,0 0 0 12px #242424;}
+@media (max-width:420px){.phone{width:100%;max-width:380px;}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;color:var(--text);background:var(--bg);overflow:hidden;}
+.statusbar{display:flex;align-items:center;justify-content:space-between;padding:16px 26px 6px;font-size:14px;font-weight:600;}
+.statusbar .bars{display:inline-flex;align-items:flex-end;gap:2px;height:11px;}
+.statusbar .bars i{width:3px;background:var(--text);border-radius:1px;display:block;}
+.statusbar .batt{width:22px;height:11px;border:1.5px solid var(--text);border-radius:3px;position:relative;display:inline-block;}
+.statusbar .batt i{position:absolute;inset:1.5px;width:13px;background:var(--text);border-radius:1px;display:block;}
+.sig{display:flex;align-items:center;gap:7px;}
+.body{flex:1;overflow-y:auto;padding:8px 20px 110px;}
+
+.scr-head{display:flex;align-items:flex-start;justify-content:space-between;margin:6px 0 14px;}
+.scr-head h2{font-size:26px;font-weight:700;letter-spacing:-.02em;margin:0 0 3px;}
+.host{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.dot-sep{width:3px;height:3px;border-radius:50%;background:var(--muted);}
+.iconbtn{width:40px;height:40px;border-radius:13px;background:var(--surface);border:1px solid var(--border);display:grid;place-items:center;color:var(--sub);flex:none;}
+.section-l{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin:20px 2px 10px;display:flex;justify-content:space-between;}
+.section-l span:last-child{letter-spacing:.02em;text-transform:none;font-weight:600;}
+
+/* segmented Machine / Proxmox */
+.seg{display:flex;gap:4px;padding:4px;border-radius:14px;background:var(--surface);border:1px solid var(--border);margin:4px 0 14px;}
+.seg span{flex:1;display:flex;align-items:center;justify-content:center;gap:7px;padding:8px 0;border-radius:10px;font-size:13px;font-weight:600;color:var(--sub);}
+.seg span.on{background:var(--accent);color:var(--accent-ink);}
+
+.nodeline{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:0 2px 12px;}
+.nodeline b{color:var(--text);font-weight:700;font-size:13px;}
+
+/* gauges */
+.gauges{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.gauge{background:var(--surface);border:1px solid var(--border);border-radius:22px;padding:14px 14px 12px;display:flex;flex-direction:column;align-items:center;}
+.ring{position:relative;width:104px;height:104px;}
+.ring .lbl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+.ring .val{font-size:25px;font-weight:700;letter-spacing:-.02em;line-height:1;}
+.ring .unit{font-size:11.5px;color:var(--sub);font-weight:600;margin-top:3px;}
+.gauge .name{font-size:13px;font-weight:700;margin-top:8px;}
+.spark{width:100%;height:24px;margin-top:6px;}
+.mini-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px;}
+.mini{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px 8px;text-align:center;}
+.mini .v{font-size:17px;font-weight:700;letter-spacing:-.01em;}
+.mini .v small{font-size:12px;color:var(--sub);font-weight:600;}
+.mini .k{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-top:3px;}
+
+/* guests */
+.guests{background:var(--surface);border:1px solid var(--border);border-radius:20px;overflow:hidden;}
+.g{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;padding:11px 13px;border-top:1px solid var(--border);}
+.g:first-child{border-top:none;}
+.g.off{opacity:.45;}
+.gico{width:34px;height:34px;border-radius:11px;background:var(--chip-bg);display:grid;place-items:center;color:var(--accent);position:relative;}
+.gico .st{position:absolute;right:-2px;bottom:-2px;width:10px;height:10px;border-radius:50%;border:2px solid var(--surface);}
+.gname{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;min-width:0;}
+.gname .t{font-size:11px;font-weight:700;letter-spacing:.06em;color:var(--muted);background:var(--chip-bg);padding:2px 5px;border-radius:5px;}
+.gmeta{font-size:11.5px;color:var(--sub);margin-top:2px;display:flex;align-items:center;gap:6px;}
+.gbar{height:4px;border-radius:3px;background:var(--track);margin-top:6px;overflow:hidden;width:100%;}
+.gbar i{display:block;height:100%;border-radius:3px;}
+.gcpu{text-align:right;}
+.gcpu .v{font-size:15px;font-weight:700;letter-spacing:-.01em;}
+.gcpu .k{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;}
+
+/* storages */
+.row{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:12px 14px;margin-bottom:10px;}
+.row .top{display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.row .nm{font-size:13.5px;font-weight:700;display:flex;align-items:center;gap:8px;min-width:0;}
+.row .nm small{font-size:11px;color:var(--muted);font-weight:500;}
+.row .rt{font-size:12px;color:var(--sub);font-weight:600;white-space:nowrap;}
+.bar{height:7px;border-radius:5px;background:var(--track);margin-top:9px;overflow:hidden;}
+.bar i{display:block;height:100%;border-radius:5px;}
+
+/* nav */
+.nav{position:absolute;left:14px;right:14px;bottom:18px;height:62px;border-radius:22px;border:1px solid var(--border);background:color-mix(in srgb,var(--surface) 88%,transparent);backdrop-filter:blur(14px);display:flex;align-items:center;justify-content:space-around;}
+.nav div{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:9px;color:var(--muted);font-weight:600;}
+.nav div.on{color:var(--accent);}
+
+/* bottom sheet */
+.scrim{position:absolute;inset:0;background:var(--scrim);}
+.sheet{position:absolute;left:0;right:0;bottom:0;background:var(--sheet);border-radius:28px 28px 0 0;border-top:1px solid var(--border);padding:10px 20px 30px;}
+.grab{width:40px;height:5px;border-radius:3px;background:var(--track);margin:0 auto 14px;}
+.sh-head{display:flex;align-items:center;gap:12px;margin-bottom:14px;}
+.sh-head .gico{width:46px;height:46px;border-radius:14px;}
+.sh-title{font-size:20px;font-weight:700;letter-spacing:-.01em;}
+.sh-sub{font-size:12px;color:var(--sub);display:flex;align-items:center;gap:6px;margin-top:2px;}
+.badge{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:700;padding:4px 9px;border-radius:8px;}
+.badge.ok{color:var(--ok);background:color-mix(in srgb,var(--ok) 15%,transparent);}
+.kv{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.kv .c{background:var(--surface-2);border:1px solid var(--border);border-radius:16px;padding:11px 12px;}
+.kv .c .k{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;}
+.kv .c .v{font-size:17px;font-weight:700;margin-top:3px;letter-spacing:-.01em;}
+.kv .c .v small{font-size:12px;color:var(--sub);font-weight:600;}
+.kv .c.wide{grid-column:1 / -1;}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:12px;}
+.tag{font-size:11.5px;font-weight:600;padding:5px 10px;border-radius:9px;background:var(--chip-bg);color:var(--surface-text);border:1px solid var(--border);}
+.mono{font-family:ui-monospace,'JetBrains Mono',monospace;font-size:12.5px;}
+
+/* settings */
+h2.h{font-size:27px;font-weight:700;letter-spacing:-.02em;margin:6px 0 6px;}
+p.lead{font-size:14px;color:var(--sub);margin:0 0 18px;line-height:1.45;}
+.sec{font-size:12px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin:4px 0 10px 4px;}
+.svc{display:flex;flex-direction:column;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:14px 14px 15px;margin-bottom:12px;}
+.svc-head{display:flex;align-items:center;gap:12px;}
+.svc-ic{width:40px;height:40px;border-radius:12px;background:var(--chip-bg);display:grid;place-items:center;color:var(--accent);flex:none;font-weight:700;}
+.svc-name{font-weight:700;font-size:15px;}
+.svc-name small{display:block;font-size:12px;color:var(--sub);font-weight:500;}
+.svc-status{margin-left:auto;display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;}
+.dot{width:8px;height:8px;border-radius:50%;}
+.dot.ok{background:var(--ok);box-shadow:0 0 0 4px color-mix(in srgb,var(--ok) 22%,transparent);}
+.input{display:flex;align-items:center;gap:9px;background:var(--field);border:1px solid var(--field-border);border-radius:14px;padding:0 12px;height:44px;}
+.input svg{flex:none;color:var(--muted);}
+.input input{flex:1;background:transparent;border:none;outline:none;font-family:inherit;font-size:15px;color:var(--text);min-width:0;}
+.input input::placeholder{color:var(--muted);}
+.pill{align-self:flex-start;padding:8px 14px;border-radius:11px;background:var(--chip-bg);color:var(--surface-text);font-size:12.5px;font-weight:600;border:1px solid var(--border);display:flex;align-items:center;gap:6px;}
+.pill.done{background:color-mix(in srgb,var(--ok) 16%,transparent);color:var(--ok);border-color:transparent;}
+.pill.primary{background:var(--accent);color:var(--accent-ink);border-color:transparent;}
+.pill.danger{background:color-mix(in srgb,var(--danger) 14%,transparent);color:var(--danger);border-color:transparent;}
+.fp{display:flex;align-items:flex-start;gap:9px;background:var(--field);border:1px solid var(--field-border);border-radius:14px;padding:10px 12px;font-size:12px;color:var(--sub);line-height:1.4;}
+.fp svg{flex:none;margin-top:1px;}
+.fp b{color:var(--text);font-weight:600;}
+.hint{font-size:11.5px;color:var(--muted);margin:0 4px;line-height:1.4;}
+
+/* cert changed */
+.alert{background:color-mix(in srgb,var(--danger) 9%,var(--surface));border:1px solid color-mix(in srgb,var(--danger) 35%,transparent);border-radius:22px;padding:18px 16px 16px;}
+.alert .hd{display:flex;align-items:center;gap:9px;color:var(--danger);margin-bottom:8px;}
+.alert h3{margin:0;color:var(--text);font-size:18px;font-weight:700;letter-spacing:-.01em;}
+.alert p{margin:0 0 14px;font-size:13px;color:var(--sub);line-height:1.45;}
+.fprow{display:flex;flex-direction:column;gap:4px;background:var(--field);border:1px solid var(--field-border);border-radius:12px;padding:9px 11px;margin-bottom:8px;}
+.fprow .k{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.08em;}
+.fprow .mono{word-break:break-all;color:var(--surface-text);}
+.fprow.new .mono{color:var(--danger);}
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap;}
+</style>
+</head>
+<body>
+  <div class="mock-head">
+    <div>
+      <div class="mock-eyebrow">Homelab · Proxmox</div>
+      <h1 class="mock-title">Proxmox dans Stats, détail d'une VM, réglages et certificat</h1>
+    </div>
+    <div class="mock-toggle">
+      <button data-active="true" onclick="setTheme('dark',this)">Sombre</button>
+      <button data-active="false" onclick="setTheme('light',this)">Clair</button>
+    </div>
+  </div>
+
+  <div class="gallery">
+
+  <!-- ============ 1. Stats · Proxmox ============ -->
+  <div>
+  <div class="phone"><div class="screen" data-theme="dark">
+    <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+    <div class="body">
+      <div class="scr-head">
+        <div><h2>Serveur</h2></div>
+        <div class="iconbtn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg></div>
+      </div>
+
+      <div class="section-l" style="margin-top:4px"><span>Lecture en cours · 1</span></div>
+      <div class="row" style="display:flex;align-items:center;gap:10px;padding:10px 12px">
+        <div style="width:34px;height:48px;border-radius:7px;background:linear-gradient(160deg,#334155,#0f172a)"></div>
+        <div style="min-width:0"><div style="font-size:13.5px;font-weight:700">Dune : deuxième partie</div><div style="font-size:11.5px;color:var(--sub)">Jellyfin · salon · 42 %</div></div>
+      </div>
+
+      <div class="seg">
+        <span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Machine</span>
+        <span class="on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg>Proxmox</span>
+      </div>
+
+      <div class="nodeline"><b>pve</b><span class="dot-sep"></span><span>PVE 8.3.2</span><span class="dot-sep"></span><span>up 63 j</span></div>
+
+      <div class="gauges">
+        <div class="gauge">
+          <div class="ring">
+            <svg width="104" height="104" viewBox="0 0 118 118">
+              <circle cx="59" cy="59" r="50" fill="none" stroke="var(--track)" stroke-width="10"/>
+              <circle cx="59" cy="59" r="50" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.2" stroke-dashoffset="257.6" transform="rotate(-90 59 59)"/>
+            </svg>
+            <div class="lbl"><div class="val">18<span style="font-size:14px">%</span></div><div class="unit">12 cœurs</div></div>
+          </div>
+          <div class="name">CPU</div>
+          <svg class="spark" viewBox="0 0 120 24" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0,19 12,18 24,20 36,15 48,17 60,13 72,16 84,14 96,17 108,15 120,18"/></svg>
+        </div>
+        <div class="gauge">
+          <div class="ring">
+            <svg width="104" height="104" viewBox="0 0 118 118">
+              <circle cx="59" cy="59" r="50" fill="none" stroke="var(--track)" stroke-width="10"/>
+              <circle cx="59" cy="59" r="50" fill="none" stroke="var(--accent)" stroke-width="10" stroke-linecap="round" stroke-dasharray="314.2" stroke-dashoffset="113.1" transform="rotate(-90 59 59)"/>
+            </svg>
+            <div class="lbl"><div class="val">64<span style="font-size:14px">%</span></div><div class="unit">40/62 Go</div></div>
+          </div>
+          <div class="name">Mémoire</div>
+          <svg class="spark" viewBox="0 0 120 24" preserveAspectRatio="none"><polyline fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" points="0,10 12,10 24,11 36,10 48,9 60,9 72,10 84,9 96,9 108,8 120,9"/></svg>
+        </div>
+      </div>
+
+      <div class="mini-row">
+        <div class="mini"><div class="v">1.24</div><div class="k">Charge 1m</div></div>
+        <div class="mini"><div class="v">6<small>/9</small></div><div class="k">En marche</div></div>
+        <div class="mini"><div class="v">3%</div><div class="k">Swap</div></div>
+      </div>
+
+      <div class="section-l"><span>VM &amp; conteneurs</span><span>6 en marche · 3 éteints</span></div>
+      <div class="guests">
+        <div class="g">
+          <div class="gico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="st" style="background:var(--ok)"></span></div>
+          <div style="min-width:0"><div class="gname">docker-host <span class="t">VM 100</span></div><div class="gmeta">RAM 11.8/16 Go</div><div class="gbar"><i style="width:74%;background:var(--warn)"></i></div></div>
+          <div class="gcpu"><div class="v">41%</div><div class="k">CPU</div></div>
+        </div>
+        <div class="g">
+          <div class="gico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg><span class="st" style="background:var(--ok)"></span></div>
+          <div style="min-width:0"><div class="gname">jellyfin <span class="t">LXC 104</span></div><div class="gmeta">RAM 2.1/4 Go</div><div class="gbar"><i style="width:52%;background:var(--accent)"></i></div></div>
+          <div class="gcpu"><div class="v">23%</div><div class="k">CPU</div></div>
+        </div>
+        <div class="g">
+          <div class="gico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="st" style="background:var(--ok)"></span></div>
+          <div style="min-width:0"><div class="gname">home-assistant <span class="t">VM 101</span></div><div class="gmeta">RAM 1.6/4 Go</div><div class="gbar"><i style="width:40%;background:var(--accent)"></i></div></div>
+          <div class="gcpu"><div class="v">6%</div><div class="k">CPU</div></div>
+        </div>
+        <div class="g">
+          <div class="gico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg><span class="st" style="background:var(--ok)"></span></div>
+          <div style="min-width:0"><div class="gname">adguard <span class="t">LXC 102</span></div><div class="gmeta">RAM 0.2/0.5 Go</div><div class="gbar"><i style="width:38%;background:var(--accent)"></i></div></div>
+          <div class="gcpu"><div class="v">1%</div><div class="k">CPU</div></div>
+        </div>
+        <div class="g off">
+          <div class="gico"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg><span class="st" style="background:var(--muted)"></span></div>
+          <div style="min-width:0"><div class="gname">win11 <span class="t">VM 110</span></div><div class="gmeta">Éteinte · 8 Go alloués</div></div>
+          <div class="gcpu"><div class="v" style="color:var(--muted)">—</div></div>
+        </div>
+      </div>
+
+      <div class="section-l"><span>Stockages</span></div>
+      <div class="row">
+        <div class="top"><div class="nm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>local-lvm <small>lvmthin</small></div><div class="rt">212 / 380 Go · 56%</div></div>
+        <div class="bar"><i style="width:56%;background:var(--accent)"></i></div>
+      </div>
+      <div class="row">
+        <div class="top"><div class="nm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>tank <small>zfspool</small></div><div class="rt" style="color:var(--danger)">7.3 / 8.0 To · 91%</div></div>
+        <div class="bar"><i style="width:91%;background:var(--danger)"></i></div>
+      </div>
+      <div class="row">
+        <div class="top"><div class="nm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14a9 3 0 0 0 18 0V5"/><path d="M3 12a9 3 0 0 0 18 0"/></svg>local <small>dir</small></div><div class="rt">18 / 94 Go · 19%</div></div>
+        <div class="bar"><i style="width:19%;background:var(--accent)"></i></div>
+      </div>
+    </div>
+    <div class="nav">
+      <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Biblio</div>
+      <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>Activité</div>
+      <div class="on"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="m19 9-5 5-4-4-3 3"/></svg>Serveur</div>
+      <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>Torrents</div>
+      <div><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Agenda</div>
+    </div>
+  </div></div>
+  <div class="frame-label">1 · Stats → onglet Proxmox</div>
+  <p class="ann">Le sélecteur Machine / Proxmox remplace l'intertitre « Machine ». Il disparaît si un seul des deux est configuré. VM allumées triées par CPU, éteintes grisées en bas, templates masqués. Rafraîchi toutes les 5 s.</p>
+  </div>
+
+  <!-- ============ 2. Détail VM ============ -->
+  <div>
+  <div class="phone"><div class="screen" data-theme="dark">
+    <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+    <div class="body">
+      <div class="scr-head"><div><h2>Serveur</h2></div></div>
+      <div class="seg"><span>Machine</span><span class="on">Proxmox</span></div>
+      <div class="guests">
+        <div class="g"><div class="gico"></div><div><div class="gname">docker-host</div><div class="gmeta">RAM 11.8/16 Go</div></div><div class="gcpu"><div class="v">41%</div></div></div>
+        <div class="g"><div class="gico"></div><div><div class="gname">jellyfin</div><div class="gmeta">RAM 2.1/4 Go</div></div><div class="gcpu"><div class="v">23%</div></div></div>
+        <div class="g"><div class="gico"></div><div><div class="gname">home-assistant</div><div class="gmeta">RAM 1.6/4 Go</div></div><div class="gcpu"><div class="v">6%</div></div></div>
+      </div>
+    </div>
+    <div class="scrim"></div>
+    <div class="sheet">
+      <div class="grab"></div>
+      <div class="sh-head">
+        <div class="gico"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 8 12 3 3 8v8l9 5 9-5V8z"/><path d="m3 8 9 5 9-5M12 13v8"/></svg></div>
+        <div style="flex:1;min-width:0">
+          <div class="sh-title">jellyfin</div>
+          <div class="sh-sub">Conteneur LXC · 104</div>
+        </div>
+        <span class="badge ok">● En marche</span>
+      </div>
+      <div class="kv">
+        <div class="c"><div class="k">CPU</div><div class="v">23% <small>· 4 cœurs</small></div></div>
+        <div class="c"><div class="k">Uptime</div><div class="v">12 j <small>4 h</small></div></div>
+        <div class="c"><div class="k">Mémoire</div><div class="v">2.1 <small>/ 4 Go</small></div><div class="gbar"><i style="width:52%;background:var(--accent)"></i></div></div>
+        <div class="c"><div class="k">Disque</div><div class="v">18 <small>/ 32 Go</small></div><div class="gbar"><i style="width:56%;background:var(--accent)"></i></div></div>
+        <div class="c"><div class="k">Réseau ↓</div><div class="v">8.2 <small>Mo/s</small></div></div>
+        <div class="c"><div class="k">Réseau ↑</div><div class="v">0.4 <small>Mo/s</small></div></div>
+        <div class="c wide"><div class="k">Adresse IP</div><div class="v mono" style="font-size:15px">192.168.1.24</div></div>
+      </div>
+      <div class="tags"><span class="tag">media</span><span class="tag">gpu</span></div>
+    </div>
+  </div></div>
+  <div class="frame-label">2 · Tap sur une VM → feuille de détail</div>
+  <p class="ann">Réseau en débit, calculé entre deux relevés (Proxmox donne des compteurs cumulés). Pour une VM, l'IP et le disque occupé exigent l'agent QEMU. Sans lui : « — » pour l'IP, et la taille allouée seule pour le disque.</p>
+  </div>
+
+  <!-- ============ 3. Réglages ============ -->
+  <div>
+  <div class="phone"><div class="screen" data-theme="dark">
+    <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+    <div class="body">
+      <h2 class="h">Réglages</h2>
+      <p class="lead">Adresse complète de chaque service.</p>
+      <div class="sec">Services</div>
+      <div class="svc">
+        <div class="svc-head"><div class="svc-ic">G</div><div class="svc-name">Glances<small>Stats serveur</small></div><div class="svc-status" style="color:var(--ok)"><span class="dot ok"></span>Connecté</div></div>
+      </div>
+      <div class="svc">
+        <div class="svc-head">
+          <div class="svc-ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="8" rx="2"/><rect x="2" y="14" width="20" height="8" rx="2"/><path d="M6 6h.01M6 18h.01"/></svg></div>
+          <div class="svc-name">Proxmox<small>Hyperviseur</small></div>
+          <div class="svc-status" style="color:var(--ok)"><span class="dot ok"></span>Connecté</div>
+        </div>
+        <div class="input"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg><input placeholder="https://192.168.1.10:8006" value="https://192.168.1.10:8006"/></div>
+        <div class="input"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><input placeholder="Utilisateur (ex. homelab@pve)" value="homelab@pve"/></div>
+        <div class="input"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="15.5" r="4.5"/><path d="m21 2-9.6 9.6M15.5 7.5l3 3L22 7l-3-3"/></svg><input placeholder="Mot de passe" value="••••••••••••"/></div>
+        <div class="fp">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--ok)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+          <div><b>Certificat auto-signé mémorisé</b><br/><span class="mono">SHA-256 4F:9A:1C:…:7E:C2</span></div>
+        </div>
+        <span class="pill done">Connecté · PVE 8.3.2</span>
+        <p class="hint">Compte dédié en lecture seule recommandé (rôle PVEAuditor). Le mot de passe reste sur le téléphone pour renouveler la session toutes les 2 h.</p>
+      </div>
+    </div>
+  </div></div>
+  <div class="frame-label">3 · Réglages (et onboarding) : carte Proxmox</div>
+  <p class="ann">Même carte dans l'onboarding, facultative. Au premier « Tester », l'app mémorise l'empreinte du certificat sans rien demander. L'encart l'affiche pour qu'on puisse la comparer à celle de Proxmox (Nœud → Système → Certificats).</p>
+  </div>
+
+  <!-- ============ 4. Certificat changé ============ -->
+  <div>
+  <div class="phone"><div class="screen" data-theme="dark">
+    <div class="statusbar"><span>9:41</span><span class="sig"><span class="bars"><i style="height:4px"></i><i style="height:6px"></i><i style="height:8px"></i><i style="height:11px"></i></span><span style="font-size:12px">5G</span><span class="batt"><i></i></span></span></div>
+    <div class="body">
+      <div class="scr-head"><div><h2>Serveur</h2></div></div>
+      <div class="seg"><span>Machine</span><span class="on">Proxmox</span></div>
+      <div class="alert">
+        <div class="hd"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/><path d="M12 8v4M12 16h.01"/></svg><h3>Certificat changé</h3></div>
+        <p>Proxmox présente un certificat différent de celui mémorisé. C'est normal après une réinstallation ou un renouvellement du certificat. Sinon, quelqu'un intercepte peut-être la connexion : ne fais pas confiance.</p>
+        <div class="fprow"><span class="k">Mémorisé</span><span class="mono">4F:9A:1C:…:7E:C2</span></div>
+        <div class="fprow new"><span class="k">Reçu</span><span class="mono">B3:07:E8:…:19:5D</span></div>
+        <div class="actions">
+          <span class="pill danger">Faire confiance au nouveau</span>
+          <span class="pill">Réglages</span>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="frame-label">4 · Empreinte différente</div>
+  <p class="ann">Aucune requête ne part (ni mot de passe ni ticket) tant que le nouveau certificat n'est pas accepté. « Faire confiance » remplace l'empreinte mémorisée et relance le chargement.</p>
+  </div>
+
+  </div>
+
+<script>
+function setTheme(mode, btn){
+  document.querySelectorAll('.screen').forEach(s=>s.setAttribute('data-theme',mode));
+  document.querySelectorAll('.mock-toggle button').forEach(b=>b.setAttribute('data-active','false'));
+  btn.setAttribute('data-active','true');
+}
+</script>
+</body>
+</html>
