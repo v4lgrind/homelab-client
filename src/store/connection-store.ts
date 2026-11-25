@@ -12,6 +12,10 @@ import type { PlexResource } from "@/types/media";
 import { HttpError } from "@/services/http";
 import { SERVICE_URL_ERROR, normalizeServiceUrl } from "@/lib/service-url";
 import { migrateHydratedState } from "@/store/migrate-address";
+import { PROXMOX_REALM_ERROR, proxmoxUrlError } from "@/services/proxmox";
+// Circular with proxmox-store, which is fine: each only uses the other inside
+// actions, never at module load.
+import { useProxmoxStore } from "@/store/proxmox-store";
 
 /** Interactive sign-in flows (Jellyfin Quick Connect, Plex PIN). */
 export type PairingId = "jellyfin" | "plex";
@@ -153,8 +157,13 @@ export const useConnectionStore = defineStore("connection", {
      * `urlOf` normalises on read.
      */
     setUrl(id: ServiceId, value: string) {
+      const before = this.urlOf(id);
       this.services[id].url = value.trim() || undefined;
       this.services[id].status = "idle";
+      // Another Proxmox address: drop what was shown for the old one, including
+      // a pending certificate alert. The pin stays, bound to its own address
+      // (certUrl), so typing the old address back restores it.
+      if (id === "proxmox" && this.urlOf(id) !== before) useProxmoxStore().reset();
     },
 
     setApiKey(id: ServiceId, value: string) {
@@ -449,6 +458,13 @@ export const useConnectionStore = defineStore("connection", {
       if (auth !== "proxyurl" && auth !== "plexauth" && !url) {
         return fail("Adresse du service requise");
       }
+      if (id === "proxmox") {
+        const err = proxmoxUrlError(url);
+        if (err) return fail(err);
+        // Proxmox answers a bare "root" with a plain 401: say what is missing.
+        const user = svc.username?.trim();
+        if (user && !/^[^@\s]+@[^@\s]+$/.test(user)) return fail(PROXMOX_REALM_ERROR);
+      }
       if (auth === "proxyurl" && !key) return fail("URL du proxy qui requise");
       if (auth === "apikey" && !key) return fail("Clé API requise");
       if (auth === "userpass") {
@@ -495,6 +511,12 @@ export const useConnectionStore = defineStore("connection", {
           svc.status = "ok";
           return true;
         }
+        if (id === "proxmox") {
+          await this.persistPassword(id);
+          svc.version = await useProxmoxStore().login();
+          svc.status = "ok";
+          return true;
+        }
         if (id === "jellyfin") {
           // Quick Connect already yielded a token; userpass gets one now.
           const token = auth === "userpass" ? await this.loginJellyfin() : key!;
@@ -533,10 +555,12 @@ export const useConnectionStore = defineStore("connection", {
       await Preferences.remove({ key: STORAGE_KEYS.apiKeyPrefix + id });
       await Preferences.remove({ key: STORAGE_KEYS.passwordPrefix + id });
       if (id === "plex") await this.clearPlexServerToken();
+      if (id === "proxmox") useProxmoxStore().reset();
     },
 
     async resetAll() {
       this.services = defaultServices();
+      useProxmoxStore().reset();
       for (const s of SERVICES) {
         this.apiKeys[s.id] = "";
         this.passwords[s.id] = "";

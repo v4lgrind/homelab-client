@@ -12,6 +12,7 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
   glances: "/proxy-glances",
   jellyfin: "/proxy-jellyfin",
   qbittorrent: "/proxy-qbittorrent",
+  proxmox: "/proxy-proxmox",
 };
 
 /**
@@ -19,7 +20,7 @@ const DEV_PROXY: Partial<Record<ServiceId, string>> = {
  * it reached the service — the address is a public, tinyauth-protected domain
  * rather than the LAN / VPN one. The key is not the problem.
  */
-export type HttpErrorKind = "auth" | "gate" | "notfound" | "network" | "server" | "unknown";
+export type HttpErrorKind = "auth" | "gate" | "notfound" | "network" | "server" | "cert" | "unknown";
 
 export class HttpError extends Error {
   // Declared explicitly rather than as constructor parameter properties, which
@@ -36,6 +37,20 @@ export class HttpError extends Error {
     this.name = "HttpError";
     this.status = status;
     this.kind = kind;
+  }
+}
+
+/**
+ * The server presented a certificate other than the pinned one (Proxmox, see
+ * pinned-transport.ts). Nothing was sent to it.
+ */
+export class CertMismatchError extends HttpError {
+  readonly received: string;
+
+  constructor(received: string) {
+    super("Certificat changé", 0, "cert");
+    this.name = "CertMismatchError";
+    this.received = received;
   }
 }
 
@@ -91,6 +106,35 @@ function buildUrl(base: string, path: string, params?: RequestOpts["params"]): s
   return s ? `${url}?${s}` : url;
 }
 
+export interface TransportRequest {
+  url: string;
+  method: string;
+  headers: Record<string, string>;
+  data?: unknown;
+  timeoutMs: number;
+}
+
+export interface TransportResponse {
+  status: number;
+  headers: Record<string, string>;
+  data: unknown;
+}
+
+/** Sends one request. Throws {@link HttpError} itself only for errors it alone
+ *  can name (a changed certificate); any other throw becomes "network". */
+export type HttpTransport = (req: TransportRequest) => Promise<TransportResponse>;
+
+/** The default: CapacitorHttp, which dodges CORS on device. */
+export const capacitorTransport: HttpTransport = (req) =>
+  CapacitorHttp.request({
+    url: req.url,
+    method: req.method,
+    headers: req.headers,
+    data: req.data,
+    connectTimeout: req.timeoutMs,
+    readTimeout: req.timeoutMs,
+  });
+
 /**
  * Thin HTTP client scoped to one service. Injects the API key on every
  * request and normalises errors into {@link HttpError}.
@@ -103,11 +147,18 @@ export class ServiceHttp {
   private readonly baseUrl: string;
   private readonly apiKey: string;
   private readonly authHeader: string;
+  private readonly transport: HttpTransport;
 
-  constructor(baseUrl: string, apiKey: string, authHeader = "X-Api-Key") {
+  constructor(
+    baseUrl: string,
+    apiKey: string,
+    authHeader = "X-Api-Key",
+    transport: HttpTransport = capacitorTransport,
+  ) {
     this.baseUrl = baseUrl;
     this.apiKey = apiKey;
     this.authHeader = authHeader;
+    this.transport = transport;
   }
 
   async request<T>(path: string, opts: RequestOpts = {}): Promise<T> {
@@ -123,15 +174,15 @@ export class ServiceHttp {
 
     let res;
     try {
-      res = await CapacitorHttp.request({
+      res = await this.transport({
         url,
         method: opts.method ?? "GET",
         headers,
         data: opts.data,
-        connectTimeout: opts.timeoutMs ?? 12000,
-        readTimeout: opts.timeoutMs ?? 12000,
+        timeoutMs: opts.timeoutMs ?? 12000,
       });
     } catch (e) {
+      if (e instanceof HttpError) throw e;
       throw new HttpError(
         `Service injoignable (${(e as Error)?.message ?? "erreur réseau"})`,
         0,

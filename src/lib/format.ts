@@ -127,3 +127,10 @@ export function formatRuntime(min?: number): string | undefined {
   const m = min % 60;
   return h ? `${h}h${m ? ` ${m.toString().padStart(2, "0")}` : ""}` : `${m} min`;
 }
+
+/** "4F:9A:1C:…:7E:C2": enough of a certificate fingerprint to compare by eye. */
+export function shortFingerprint(fp: string): string {
+  const bytes = fp.split(":");
+  if (bytes.length <= 5) return fp;
+  return [...bytes.slice(0, 3), "…", ...bytes.slice(-2)].join(":");
+}
